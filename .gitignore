@@ -1,0 +1,55 @@
+# Build artifacts
+build/
+*.o
+*.so
+*.a
+*.exe
+*.dll
+
+# Code coverage
+*.gcda
+*.gcno
+*.gcov
+coverage.info
+coverage_html/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+
+# EEPROM simulation data
+*.bin
+*.dat
+eeprom_data.bin
+
+# Test artifacts
+test_results/
+*.log
+
+# Documentation build
+docs/api/html/
+docs/api/xml/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Phase documents (draft/development phases)
+PHASE1*.md
+PHASE1*.md
