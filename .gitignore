@@ -53,3 +53,6 @@ temp/
 # Phase documents (draft/development phases)
 PHASE1*.md
 PHASE3*.md
+
+# Design completion reports (development documents)
+design/COMPLETION_REPORT.md
