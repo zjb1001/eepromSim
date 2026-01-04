@@ -1,8 +1,12 @@
 # eepromSim - AUTOSAR NvM Module Implementation
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version: 1.0.0](https://img.shields.io/badge/Version-1.0.0-blue.svg)](https://github.com/zjb1001/eepromSim)
+[![Status: Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)]()
+
 **Version:** 1.0.0
 **Status:** ✅ Production Ready
-**License:** MIT
+**License:** [MIT](LICENSE)
 
 A complete, production-ready AUTOSAR 4.3 NvM (Non-Volatile Memory Manager) module implementation with comprehensive testing, documentation, and example programs.
 
@@ -146,7 +150,14 @@ Multi-version storage with round-robin versioning.
 
 ## License
 
-MIT License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+**MIT License Summary:**
+- ✅ Free to use for commercial and personal projects
+- ✅ Free to modify and distribute
+- ✅ No restrictions on redistribution
+- ✅ No warranty disclaimer required in derivatives
+- ℹ️ Only requirement: Include the original copyright and license notice
 
 ---
 
