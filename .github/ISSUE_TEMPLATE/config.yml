@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📖 Documentation
+    url: https://github.com/zjb1001/eepromSim/blob/main/README.md
+    about: Please check the documentation before asking a question
+  - name: 🔍 Search Existing Issues
+    url: https://github.com/zjb1001/eepromSim/issues?q=is%3Aissue
+    about: Search to see if your question or bug has already been reported
+  - name: 💬 Discussion Forum
+    url: https://github.com/zjb1001/eepromSim/discussions
+    about: Ask questions and discuss with the community (if enabled)
