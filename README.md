@@ -139,6 +139,11 @@ Multi-version storage with round-robin versioning.
   - 55 test cases (100% pass)
   - Comprehensive documentation
 
+## Community
+
+* **[Code of Conduct](CODE_OF_CONDUCT.md)** - Our community guidelines
+* **Contributing** - We welcome contributions! Please read our guidelines
+
 ## License
 
 MIT License
