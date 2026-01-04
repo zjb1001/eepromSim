@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}首页 - EEPROM可视化仿真{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="hero-section text-center mb-5 animate-fade-in">
+    <div class="hero-icon mb-3">🔧</div>
+    <h1 class="hero-title">EEPROM可视化仿真平台</h1>
+    <p class="hero-subtitle">交互式学习EEPROM物理特性与NvM核心行为</p>
+    <div class="hero-badges">
+        <span class="badge bg-primary">🎮 100% 交互式</span>
+        <span class="badge bg-success">⭐ 7个V2模块</span>
+        <span class="badge bg-info">📚 游戏化学习</span>
+    </div>
+</div>
+
+<!-- V2推荐模块 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-warning shadow-lg">
+            <div class="card-header bg-warning text-dark">
+                <h4 class="mb-0">⭐ 推荐交互式模块（V2版本）</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">
+                    <strong>💡 提示：</strong> V2版本采用全新的交互式设计，通过游戏化、可视化、动手实践的方式，让您深刻理解EEPROM的工作原理！
+                </p>
+                <div class="row g-3">
+                    <div class="col-md-6 col-lg-4">
+                        <a href="/erase_write_demo_v2" class="text-decoration-none">
+                            <div class="card h-100 module-card-v2">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="module-icon">2️⃣</span>
+                                        <h5 class="card-title mb-0 ms-2">擦除-写入依赖</h5>
+                                    </div>
+                                    <p class="card-text small">陷阱实验 - 先失败再成功！</p>
+                                    <div class="module-meta">
+                                        <span class="badge bg-warning text-dark">⭐ 推荐</span>
+                                        <span class="text-muted">⏱️ 5分钟</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+
+                    <div class="col-md-6 col-lg-4">
+                        <a href="/write_amplification_v2" class="text-decoration-none">
+                            <div class="card h-100 module-card-v2">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="module-icon">3️⃣</span>
+                                        <h5 class="card-title mb-0 ms-2">写放大现象</h5>
+                                    </div>
+                                    <p class="card-text small">可视化Page网格 + 擦除动画</p>
+                                    <div class="module-meta">
+                                        <span class="badge bg-warning text-dark">⭐ 推荐</span>
+                                        <span class="text-muted">⏱️ 8分钟</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+
+                    <div class="col-md-6 col-lg-4">
+                        <a href="/wear_leveling_v2" class="text-decoration-none">
+                            <div class="card h-100 module-card-v2">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="module-icon">4️⃣</span>
+                                        <h5 class="card-title mb-0 ms-2">磨损均衡</h5>
+                                    </div>
+                                    <p class="card-text small">Page寿命竞赛 - 看谁先挂掉！</p>
+                                    <div class="module-meta">
+                                        <span class="badge bg-warning text-dark">⭐ 推荐</span>
+                                        <span class="text-muted">⏱️ 10分钟</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+
+                    <div class="col-md-6 col-lg-4">
+                        <a href="/bit_flip_v2" class="text-decoration-none">
+                            <div class="card h-100 module-card-v2">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="module-icon">5️⃣</span>
+                                        <h5 class="card-title mb-0 ms-2">位翻转故障</h5>
+                                    </div>
+                                    <p class="card-text small">数据破坏侦探 - 3关挑战！</p>
+                                    <div class="module-meta">
+                                        <span class="badge bg-warning text-dark">⭐ 推荐</span>
+                                        <span class="text-muted">⏱️ 10分钟</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+
+                    <div class="col-md-6 col-lg-4">
+                        <a href="/nvm_queue_v2" class="text-decoration-none">
+                            <div class="card h-100 module-card-v2">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="module-icon">6️⃣</span>
+                                        <h5 class="card-title mb-0 ms-2">NvM队列</h5>
+                                    </div>
+                                    <p class="card-text small">Job调度指挥官 - 紧急任务大考验！</p>
+                                    <div class="module-meta">
+                                        <span class="badge bg-warning text-dark">⭐ 推荐</span>
+                                        <span class="text-muted">⏱️ 10分钟</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+
+                    <div class="col-md-6 col-lg-4">
+                        <a href="/writeall_consistency_v2" class="text-decoration-none">
+                            <div class="card h-100 module-card-v2">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="module-icon">7️⃣</span>
+                                        <h5 class="card-title mb-0 ms-2">WriteAll一致性</h5>
+                                    </div>
+                                    <p class="card-text small">掉电拯救者 - 5种掉电时机测试！</p>
+                                    <div class="module-meta">
+                                        <span class="badge bg-warning text-dark">⭐ 推荐</span>
+                                        <span class="text-muted">⏱️ 12分钟</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+
+                    <div class="col-md-6 col-lg-4 offset-lg-4">
+                        <a href="/block_types_v2" class="text-decoration-none">
+                            <div class="card h-100 module-card-v2">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="module-icon">8️⃣</span>
+                                        <h5 class="card-title mb-0 ms-2">Block类型对比</h5>
+                                    </div>
+                                    <p class="card-text small">数据保险柜 - 灾难生存挑战！</p>
+                                    <div class="module-meta">
+                                        <span class="badge bg-warning text-dark">⭐ 推荐</span>
+                                        <span class="text-muted">⏱️ 12分钟</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 原版模块 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">📚 原版模块（知识呈现）</h4>
+            </div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <a href="/physical" class="btn btn-outline-primary w-100">1. 物理结构</a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="/erase_write_demo" class="btn btn-outline-secondary w-100">2. 擦除-写入</a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="/write_amplification" class="btn btn-outline-secondary w-100">3. 写放大</a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="/wear_leveling" class="btn btn-outline-secondary w-100">4. 磨损均衡</a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="/bit_flip" class="btn btn-outline-secondary w-100">5. 位翻转</a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="/nvm_queue" class="btn btn-outline-secondary w-100">6. NvM队列</a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="/writeall_consistency" class="btn btn-outline-secondary w-100">7. WriteAll</a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="/block_types" class="btn btn-outline-secondary w-100">8. Block类型</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 快速提示 -->
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">💡 快速提示</h4>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="tip-card">
+                            <div class="tip-icon">✅</div>
+                            <p class="mb-0 small">EEPROM只能将1变成0，不能将0变成1（除非擦除）</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="tip-card">
+                            <div class="tip-icon">📝</div>
+                            <p class="mb-0 small">擦除的最小单位是Page（256字节）</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="tip-card">
+                            <div class="tip-icon">⚠️</div>
+                            <p class="mb-0 small">写入前必须先擦除，否则会失败</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-info">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">📊 平台统计</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h3 class="text-primary mb-0">8</h3>
+                        <small>学习模块</small>
+                    </div>
+                    <div class="col-4">
+                        <h3 class="text-success mb-0">7</h3>
+                        <small>V2版本</small>
+                    </div>
+                    <div class="col-4">
+                        <h3 class="text-warning mb-0">100%</h3>
+                        <small>交互率</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Hero Section */
+.hero-section {
+    padding: 3rem 1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 1rem;
+    color: white;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+
+.hero-icon {
+    font-size: 4rem;
+    animation: pulse 2s infinite;
+}
+
+.hero-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.hero-subtitle {
+    font-size: 1.25rem;
+    opacity: 0.9;
+    margin-bottom: 1.5rem;
+}
+
+.hero-badges {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.hero-badges .badge {
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
+}
+
+/* Module Cards */
+.module-card-v2 {
+    border: 2px solid #fbbf24;
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.module-card-v2:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(251, 191, 36, 0.3);
+    border-color: #f59e0b;
+}
+
+.module-icon {
+    font-size: 1.5rem;
+}
+
+.module-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.5rem;
+}
+
+/* Tip Cards */
+.tip-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--gray-50);
+    border-radius: 0.5rem;
+    height: 100%;
+}
+
+.tip-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .hero-title {
+        font-size: 1.75rem;
+    }
+
+    .hero-subtitle {
+        font-size: 1rem;
+    }
+
+    .hero-icon {
+        font-size: 3rem;
+    }
+}
+</style>
+{% endblock %}

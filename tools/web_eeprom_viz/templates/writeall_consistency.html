@@ -1,0 +1,396 @@
+{% extends "base.html" %}
+
+{% block title %}WriteAll一致性 - EEPROM可视化{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4">🔐 WriteAll一致性与掉电恢复</h2>
+
+    <div class="alert alert-info">
+        <strong>💡 核心概念:</strong> WriteAll使用两阶段提交确保数据一致性。
+        <strong>Phase 1</strong>: 创建快照并持久化 → <strong>Phase 2</strong>: 复制到目标位置并校验。
+        即使掉电也能恢复到一致性状态。
+    </div>
+
+    <!-- 当前状态 -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>📍 当前状态</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <h4 id="currentPhase">IDLE</h4>
+                            <small>当前阶段</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 id="virtualTime">0</h4>
+                            <small>虚拟时间</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 id="snapshotStatus">❌</h4>
+                            <small>快照可用</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 id="dirtyDataStatus">✅</h4>
+                            <small>数据一致</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 两阶段提交可视化 -->
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <!-- Phase 1 -->
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Phase 1: 快照创建</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div id="phase1Status" class="alert alert-secondary">
+                            等待开始...
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Block ID:</label>
+                        <select id="blockIdSelect" class="form-select">
+                            <option value="0">Block 0 (Native)</option>
+                            <option value="1">Block 1 (Redundant)</option>
+                            <option value="2">Block 2 (Dataset)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">新数据 (Hex):</label>
+                        <input type="text" id="newDataInput" class="form-control"
+                               value="AA" placeholder="例如: AA" maxlength="32">
+                        <small class="text-muted">输入十六进制数据，例如: AA 表示 0xAA</small>
+                    </div>
+
+                    <button class="btn btn-primary w-100 mb-2" onclick="executePhase1()">
+                        🚀 执行Phase 1
+                    </button>
+
+                    <!-- 快照数据展示 -->
+                    <div id="snapshotDisplay" class="mt-3" style="display:none;">
+                        <h6>📸 快照数据:</h6>
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <p class="mb-1"><strong>Data:</strong> <code id="snapshotData"></code></p>
+                                <p class="mb-1"><strong>CRC16:</strong> <code id="snapshotCrc"></code></p>
+                                <p class="mb-0"><strong>Timestamp:</strong> <span id="snapshotTimestamp"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <!-- Phase 2 -->
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Phase 2: 数据复制</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div id="phase2Status" class="alert alert-secondary">
+                            等待Phase 1完成...
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" id="dirtyDataCheck" class="form-check-input">
+                            <label class="form-check-label" for="dirtyDataCheck">
+                                注入脏数据（模拟快照后RAM被修改）
+                            </label>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-success w-100 mb-2" onclick="executePhase2()" id="phase2Btn" disabled>
+                        📝 执行Phase 2
+                    </button>
+
+                    <!-- 最终数据展示 -->
+                    <div id="finalDataDisplay" class="mt-3" style="display:none;">
+                        <h6>✅ 最终数据:</h6>
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <p class="mb-1"><strong>CRC16:</strong> <code id="finalCrc"></code></p>
+                                <p class="mb-0"><strong>校验结果:</strong> <span id="verifyResult"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 掉电恢复实验 -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-warning">
+                    <h5>⚡ 掉电恢复实验</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <p class="text-muted">
+                                模拟在不同阶段掉电，观察NvM如何恢复数据一致性。
+                            </p>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-outline-danger" onclick="simulatePowerLoss('before_phase1')">
+                                    Phase 1之前
+                                </button>
+                                <button class="btn btn-outline-warning" onclick="simulatePowerLoss('after_phase1')">
+                                    Phase 1之后
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="simulatePowerLoss('during_phase2')">
+                                    Phase 2期间
+                                </button>
+                                <button class="btn btn-outline-success" onclick="simulatePowerLoss('after_phase2')">
+                                    Phase 2之后
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-primary w-100" onclick="resetSimulation()">
+                                🔄 重置实验
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 恢复结果 -->
+                    <div id="recoveryResult" class="mt-3" style="display:none;">
+                        <div class="alert alert-info">
+                            <h6>🔧 恢复结果:</h6>
+                            <p class="mb-1"><strong>掉电点:</strong> <span id="powerLossPoint"></span></p>
+                            <p class="mb-1"><strong>恢复策略:</strong> <span id="recoveryStrategy"></span></p>
+                            <p class="mb-0"><strong>最终状态:</strong> <span id="finalState"></span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 事件日志 -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>📋 事件日志</h5>
+                </div>
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                    <div id="eventLog">
+                        <p class="text-muted text-center">暂无事件</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentBlockId = 0;
+let currentNewData = 'AA';
+
+// 执行Phase 1
+async function executePhase1() {
+    currentBlockId = parseInt(document.getElementById('blockIdSelect').value);
+    const inputHex = document.getElementById('newDataInput').value.trim();
+    currentNewData = inputHex || 'AA';
+
+    try {
+        // Step 1: Start
+        const startResponse = await fetch('/api/writeall/start', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                block_id: currentBlockId,
+                new_data: currentNewData
+            })
+        });
+        const startResult = await startResponse.json();
+
+        // Step 2: Snapshot
+        const snapshotResponse = await fetch('/api/writeall/phase1_snapshot', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({block_id: currentBlockId})
+        });
+        const snapshotResult = await snapshotResponse.json();
+
+        // Step 3: Persist
+        const persistResponse = await fetch('/api/writeall/phase1_persist', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({block_id: currentBlockId})
+        });
+        const persistResult = await persistResponse.json();
+
+        // Update display
+        document.getElementById('phase1Status').className = 'alert alert-success';
+        document.getElementById('phase1Status').innerHTML = '✅ Phase 1 完成: 快照已创建并持久化';
+
+        document.getElementById('snapshotDisplay').style.display = 'block';
+        document.getElementById('snapshotData').textContent = snapshotResult.snapshot.data;
+        document.getElementById('snapshotCrc').textContent = snapshotResult.snapshot.checksum;
+        document.getElementById('snapshotTimestamp').textContent = snapshotResult.snapshot.timestamp;
+
+        document.getElementById('phase2Btn').disabled = false;
+
+        await updateStatus();
+
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Phase 1 执行失败: ' + error);
+    }
+}
+
+// 执行Phase 2
+async function executePhase2() {
+    const injectDirty = document.getElementById('dirtyDataCheck').checked;
+
+    try {
+        // Step 1: Copy new data
+        const copyResponse = await fetch('/api/writeall/phase2_copy', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                block_id: currentBlockId,
+                new_data: currentNewData,
+                inject_dirty: injectDirty
+            })
+        });
+        const copyResult = await copyResponse.json();
+
+        if (copyResult.dirty_data_detected) {
+            document.getElementById('phase2Status').className = 'alert alert-danger';
+            document.getElementById('phase2Status').innerHTML = '❌ 脏数据检测: RAM数据在快照后被修改';
+            await updateStatus();
+            return;
+        }
+
+        // Step 2: Verify
+        const verifyResponse = await fetch('/api/writeall/phase2_verify', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({block_id: currentBlockId})
+        });
+        const verifyResult = await verifyResponse.json();
+
+        // Update display
+        if (verifyResult.is_valid) {
+            document.getElementById('phase2Status').className = 'alert alert-success';
+            document.getElementById('phase2Status').innerHTML = '✅ Phase 2 完成: 数据已复制并通过校验';
+        } else {
+            document.getElementById('phase2Status').className = 'alert alert-warning';
+            document.getElementById('phase2Status').innerHTML = '⚠️ Phase 2 完成: 但校验失败';
+        }
+
+        document.getElementById('finalDataDisplay').style.display = 'block';
+        document.getElementById('finalCrc').textContent = verifyResult.checksum;
+        document.getElementById('verifyResult').innerHTML = verifyResult.is_valid ?
+            '<span class="text-success">✅ 校验通过</span>' :
+            '<span class="text-danger">❌ 校验失败</span>';
+
+        await updateStatus();
+
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Phase 2 执行失败: ' + error);
+    }
+}
+
+// 模拟掉电恢复
+async function simulatePowerLoss(recoveryPoint) {
+    try {
+        const response = await fetch('/api/writeall/power_loss', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({recovery_point: recoveryPoint})
+        });
+
+        const result = await response.json();
+
+        document.getElementById('recoveryResult').style.display = 'block';
+        document.getElementById('powerLossPoint').textContent = result.power_loss_point;
+        document.getElementById('recoveryStrategy').textContent = result.recovery_result;
+        document.getElementById('finalState').innerHTML =
+            `<span class="badge bg-${result.current_phase === 'COMPLETED' ? 'success' : 'warning'}">${result.current_phase}</span>`;
+
+        await updateStatus();
+
+    } catch (error) {
+        console.error('Error:', error);
+        alert('掉电模拟失败: ' + error);
+    }
+}
+
+// 重置仿真
+async function resetSimulation() {
+    try {
+        await fetch('/api/writeall/reset', {method: 'POST'});
+
+        document.getElementById('phase1Status').className = 'alert alert-secondary';
+        document.getElementById('phase1Status').innerHTML = '等待开始...';
+        document.getElementById('phase2Status').className = 'alert alert-secondary';
+        document.getElementById('phase2Status').innerHTML = '等待Phase 1完成...';
+
+        document.getElementById('snapshotDisplay').style.display = 'none';
+        document.getElementById('finalDataDisplay').style.display = 'none';
+        document.getElementById('recoveryResult').style.display = 'none';
+
+        document.getElementById('phase2Btn').disabled = true;
+
+        await updateStatus();
+
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+// 更新状态
+async function updateStatus() {
+    try {
+        const response = await fetch('/api/writeall/status');
+        const status = await response.json();
+
+        document.getElementById('currentPhase').textContent = status.current_phase;
+        document.getElementById('virtualTime').textContent = status.virtual_time;
+        document.getElementById('snapshotStatus').textContent = status.snapshot_available ? '✅' : '❌';
+        document.getElementById('dirtyDataStatus').textContent = status.dirty_data_detected ? '⚠️' : '✅';
+
+        // Update event log
+        const logDiv = document.getElementById('eventLog');
+        if (status.event_log && status.event_log.length > 0) {
+            logDiv.innerHTML = status.event_log.map(log =>
+                `<p class="mb-1"><small>[${log.time}] ${log.event}</small></p>`
+            ).reverse().join('');
+        } else {
+            logDiv.innerHTML = '<p class="text-muted text-center">暂无事件</p>';
+        }
+
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    updateStatus();
+});
+</script>
+{% endblock %}

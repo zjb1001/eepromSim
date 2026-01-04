@@ -1,0 +1,796 @@
+{% extends "base.html" %}
+
+{% block title %}Block类型对比 - 数据保险柜{% endblock %}
+
+{% block content %}
+<div class="page-shell container-fluid">
+    <h2 class="mb-4">🔐 数据保险柜: 灾难生存挑战！</h2>
+
+    <!-- 核心概念 -->
+    <div class="alert alert-danger mb-4">
+        <strong>🎯 实验目标:</strong> 在火灾🔥、地震🌋、黑客💻攻击中，看哪种Block类型能保护数据！<br>
+        <small>挑战：为不同类型的数据选择最合适的保险柜，并测试它们的生存能力！</small>
+    </div>
+
+    <!-- 游戏模式选择 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">🎮 选择挑战模式</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-info">
+                                <div class="card-header bg-info text-white">
+                                    <strong>📚 学习模式</strong>
+                                </div>
+                                <div class="card-body">
+                                    <p>对比三种保险柜</p>
+                                    <ul class="small mb-0">
+                                        <li>了解存储机制</li>
+                                        <li>对比恢复能力</li>
+                                        <li>理解适用场景</li>
+                                    </ul>
+                                    <button class="btn btn-info w-100 mt-2" onclick="startMode('learning')">
+                                        🎓 开始学习
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-warning">
+                                <div class="card-header bg-warning text-dark">
+                                    <strong>🔥 灾难测试</strong>
+                                </div>
+                                <div class="card-body">
+                                    <p>测试三种保险柜极限</p>
+                                    <ul class="small mb-0">
+                                        <li>火灾/地震/黑客</li>
+                                        <li>看谁存活</li>
+                                        <li>评分系统</li>
+                                    </ul>
+                                    <button class="btn btn-warning w-100 mt-2" onclick="startMode('disaster')">
+                                        💥 开始测试
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-success">
+                                <div class="card-header bg-success text-white">
+                                    <strong>💰 金币保存</strong>
+                                </div>
+                                <div class="card-body">
+                                    <p>为金币选择保险柜</p>
+                                    <ul class="small mb-0">
+                                        <li>模拟真实场景</li>
+                                        <li>测试选择正确性</li>
+                                        <li>获得金币奖励</li>
+                                    </ul>
+                                    <button class="btn btn-success w-100 mt-2" onclick="startMode('coin')">
+                                        💰 保存金币
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 三种保险柜可视化 -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <!-- Native Block -->
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">❌ Native保险柜</h5>
+                    <small>单份数据，无备份</small>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <div id="nativeSafe" class="safe-viz">
+                            📦<br>
+                            <small>单层保险柜</small>
+                        </div>
+                    </div>
+                    <div class="data-display" id="nativeData">
+                        <p class="text-muted">无数据</p>
+                    </div>
+                    <hr>
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <small>存储开销</small>
+                            <div><strong>1x</strong></div>
+                        </div>
+                        <div class="col-6">
+                            <small>恢复能力</small>
+                            <div><strong class="text-danger">无</strong></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Redundant Block -->
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">✅ Redundant保险柜</h5>
+                    <small>双份备份，互为热备</small>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <div id="redundantSafe" class="safe-viz">
+                            📦📦<br>
+                            <small>双层保险柜</small>
+                        </div>
+                    </div>
+                    <div class="data-display" id="redundantData">
+                        <p class="text-muted">无数据</p>
+                    </div>
+                    <hr>
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <small>存储开销</small>
+                            <div><strong>2x</strong></div>
+                        </div>
+                        <div class="col-6">
+                            <small>恢复能力</small>
+                            <div><strong class="text-success">备份</strong></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Dataset Block -->
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">⭐ Dataset保险柜</h5>
+                    <small>多版本管理，可回退</small>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <div id="datasetSafe" class="safe-viz">
+                            📦📦📦<br>
+                            <small>三层保险柜</small>
+                        </div>
+                    </div>
+                    <div class="data-display" id="datasetData">
+                        <p class="text-muted">无数据</p>
+                    </div>
+                    <hr>
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <small>存储开销</small>
+                            <div><strong>Nx</strong></div>
+                        </div>
+                        <div class="col-6">
+                            <small>恢复能力</small>
+                            <div><strong class="text-success">多版本</strong></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 灾难测试控制台 -->
+    <div class="row mb-4" id="disasterControls" style="display:none;">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-danger">
+                    <h5 class="mb-0">💥 灾难测试控制台</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="text-muted">点击下面的按钮模拟不同类型的灾难：</p>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-outline-danger btn-lg" onclick="triggerDisaster('fire')">
+                                    🔥 火灾灾难 - 随机损坏1个保险柜
+                                </button>
+                                <button class="btn btn-outline-dark btn-lg" onclick="triggerDisaster('earthquake')">
+                                    🌋 地震灾难 - 随机损坏2个保险柜
+                                </button>
+                                <button class="btn btn-outline-secondary btn-lg" onclick="triggerDisaster('hacker')">
+                                    💻 黑客攻击 - 恶意修改所有保险柜
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="text-center">
+                                <h6>存活保险柜</h6>
+                                <h2 id="survivalCount">3/3</h2>
+                                <hr>
+                                <h6>测试得分</h6>
+                                <h2 id="disasterScore">0</h2>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 灾难效果 -->
+                    <div id="disasterEffect" class="mt-3" style="display:none;">
+                        <div class="alert alert-danger text-center">
+                            <h4 id="disasterTitle">💥 灾难发生！！！</h4>
+                            <p id="disasterDesc"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 金币保存游戏 -->
+    <div class="row mb-4" id="coinGame" style="display:none;">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-warning">
+                    <h5 class="mb-0">💰 金币保存游戏</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="text-muted">你有<strong>100金币</strong>，需要为它们选择最合适的保险柜！</p>
+
+                            <div class="mb-3">
+                                <label class="form-label">数据类型:</label>
+                                <select id="dataTypeSelect" class="form-select">
+                                    <option value="temporary">临时数据（日志）</option>
+                                    <option value="important">重要数据（配置）</option>
+                                    <option value="critical">关键数据（密码）</option>
+                                    <option value="versioned">版本数据（历史记录）</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">选择保险柜:</label>
+                                <div class="btn-group w-100" role="group">
+                                    <button class="btn btn-outline-danger" onclick="selectSafe('native')">Native</button>
+                                    <button class="btn btn-outline-warning" onclick="selectSafe('redundant')">Redundant</button>
+                                    <button class="btn btn-outline-success" onclick="selectSafe('dataset')">Dataset</button>
+                                </div>
+                            </div>
+
+                            <button class="btn btn-warning w-100" onclick="saveCoins()">
+                                💰 保存金币
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="text-center">
+                                <h6>💰 当前金币</h6>
+                                <h1 id="coinCount">100</h1>
+                                <hr>
+                                <h6>推荐保险柜</h6>
+                                <h3 id="recommendedSafe">?</h3>
+                                <hr>
+                                <h6>游戏得分</h6>
+                                <h3 id="gameScore">0</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 游戏结果 -->
+                    <div id="coinResult" class="mt-3" style="display:none;">
+                        <div class="alert alert-info">
+                            <h6>📊 保存结果:</h6>
+                            <p><strong>你的选择:</strong> <span id="userChoice"></span></p>
+                            <p><strong>推荐选择:</strong> <span id="optimalChoice"></span></p>
+                            <p><strong>结果:</strong> <span id="saveResult"></span></p>
+                            <p><strong>金币:</strong> <span id="coinResult"></span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 推荐系统 -->
+    <div class="row mb-4" id="recommendationSystem" style="display:none;">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info">
+                    <h5 class="mb-0">🤖 智能推荐系统</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">根据数据特征，自动推荐最合适的Block类型！</p>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-check mb-2">
+                                <input type="checkbox" id="checkCritical" class="form-check-input" onchange="updateRecommendation()">
+                                <label class="form-check-label" for="checkCritical">
+                                    数据是否关键？
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input type="checkbox" id="checkVersion" class="form-check-input" onchange="updateRecommendation()">
+                                <label class="form-check-label" for="checkVersion">
+                                    需要历史版本？
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input type="checkbox" id="checkFrequent" class="form-check-input" onchange="updateRecommendation()">
+                                <label class="form-check-label" for="checkFrequent">
+                                    频繁修改？
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div id="recommendationResult" class="alert alert-secondary">
+                                请选择数据特征...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 事件日志 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">📋 事件日志</h5>
+                </div>
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                    <div id="eventLog">
+                        <p class="text-muted text-center">等待实验开始...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 成功庆祝模态框 -->
+    <div class="modal" id="gameCompleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">🎉 游戏结束！</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <h6>✅ 挑战完成！</h6>
+                    <div id="gameSummary"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+                        继续探索
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* 确保主要内容区域充满可用空间，但不影响导航栏容器 */
+.page-shell {
+    min-height: calc(100vh - 100px);
+}
+
+.safe-viz {
+    font-size: 48px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    transition: all 0.3s;
+}
+
+.safe-viz.damaged {
+    background: #ffcccc;
+    animation: shake 0.5s;
+}
+
+.safe-viz.safe {
+    background: #ccffcc;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    75% { transform: translateX(10px); }
+}
+
+.data-display {
+    min-height: 60px;
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+.disaster-flash {
+    animation: disaster 0.5s;
+}
+
+@keyframes disaster {
+    0%, 100% { background: white; }
+    20% { background: #ff0000; }
+    40% { background: #ffffff; }
+    60% { background: #ff6600; }
+    80% { background: #ffffff; }
+}
+
+.log-entry {
+    padding: 8px 10px;
+    margin-bottom: 5px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 12px;
+    border-left: 4px solid #007bff;
+}
+
+.log-disaster { background: #f8d7da; border-left-color: #dc3545; }
+.log-recovery { background: #d4edda; border-left-color: #28a745; }
+.log-coin { background: #fff3cd; border-left-color: #ffc107; }
+
+/* 响应式 */
+@media (max-width: 991px) {
+    .page-shell {
+        min-height: auto;
+    }
+
+    .safe-viz {
+        font-size: 36px;
+        padding: 15px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentMode = null;
+let nativeData = [];
+let redundantMain = [];
+let redundantBackup = [];
+let datasetVersions = [[], [], []];
+let disasterScore = 0;
+let gameScore = 0;
+let coins = 100;
+let selectedSafe = null;
+
+// 初始化
+function init() {
+    resetData();
+    addLog('🚀 数据保险柜系统已启动', 'info');
+}
+
+// 重置数据
+function resetData() {
+    nativeData = [0xAA, 0xAA, 0xAA, 0xAA];
+    redundantMain = [0xBB, 0xBB, 0xBB, 0xBB];
+    redundantBackup = [0xBB, 0xBB, 0xBB, 0xBB];
+    datasetVersions = [
+        [0xCC, 0xCC, 0xCC, 0xCC],  // 版本0（最新）
+        [0x11, 0x11, 0x11, 0x11],  // 版本1
+        [0x22, 0x22, 0x22, 0x22]   // 版本2
+    ];
+    updateDisplay();
+}
+
+// 开始模式
+function startMode(mode) {
+    currentMode = mode;
+    resetData();
+
+    // 隐藏所有面板
+    document.getElementById('disasterControls').style.display = 'none';
+    document.getElementById('coinGame').style.display = 'none';
+    document.getElementById('recommendationSystem').style.display = 'none';
+
+    if (mode === 'learning') {
+        addLog('🎓 开始学习模式', 'info');
+        document.getElementById('recommendationSystem').style.display = 'block';
+    } else if (mode === 'disaster') {
+        addLog('💥 开始灾难测试模式', 'info');
+        document.getElementById('disasterControls').style.display = 'block';
+        disasterScore = 0;
+        document.getElementById('disasterScore').textContent = '0';
+    } else if (mode === 'coin') {
+        addLog('💰 开始金币保存游戏', 'info');
+        document.getElementById('coinGame').style.display = 'block';
+        coins = 100;
+        gameScore = 0;
+        document.getElementById('coinCount').textContent = coins;
+        document.getElementById('gameScore').textContent = gameScore;
+    }
+}
+
+// 触发灾难
+async function triggerDisaster(type) {
+    const disasterNames = {
+        'fire': '🔥 火灾',
+        'earthquake': '🌋 地震',
+        'hacker': '💻 黑客攻击'
+    };
+
+    const disasterDescs = {
+        'fire': '高温损坏了1个保险柜！',
+        'earthquake': '强烈震动损坏了2个保险柜！',
+        'hacker': '恶意软件修改了所有保险柜的数据！'
+    };
+
+    addLog(`💥 ${disasterNames[type]}灾难发生！`, 'disaster');
+
+    // 显示灾难效果
+    document.getElementById('disasterEffect').style.display = 'block';
+    document.getElementById('disasterTitle').textContent = disasterNames[type] + '发生！！！';
+    document.getElementById('disasterDesc').textContent = disasterDescs[type];
+    document.body.classList.add('disaster-flash');
+
+    await sleep(500);
+
+    document.body.classList.remove('disaster-flash');
+
+    // 应用灾难
+    let damagedCount = 0;
+
+    if (type === 'fire') {
+        // 随机损坏1个
+        const targets = ['native', 'redundant', 'dataset'];
+        const target = targets[Math.floor(Math.random() * 3)];
+        damageSafe(target);
+        damagedCount = 1;
+    } else if (type === 'earthquake') {
+        // 随机损坏2个
+        const targets = ['native', 'redundant', 'dataset'];
+        const shuffled = targets.sort(() => 0.5 - Math.random());
+        damageSafe(shuffled[0]);
+        damageSafe(shuffled[1]);
+        damagedCount = 2;
+    } else if (type === 'hacker') {
+        // 恶意修改所有
+        nativeData = [0xFF, 0xFF, 0xFF, 0xFF];
+        redundantMain = [0xFF, 0xFF, 0xFF, 0xFF];
+        redundantBackup = [0xFF, 0xFF, 0xFF, 0xFF];
+        datasetVersions = [[0xFF, 0xFF], [0xFF, 0xFF], [0xFF, 0xFF]];
+        document.getElementById('nativeSafe').classList.add('damaged');
+        document.getElementById('redundantSafe').classList.add('damaged');
+        document.getElementById('datasetSafe').classList.add('damaged');
+        damagedCount = 3;
+    }
+
+    // 计算存活
+    const nativeAlive = !isDataCorrupted(nativeData);
+    const redundantAlive = !isDataCorrupted(redundantMain) || !isDataCorrupted(redundantBackup);
+    const datasetAlive = datasetVersions.some(v => !isDataCorrupted(v));
+
+    const survivalCount = [nativeAlive, redundantAlive, datasetAlive].filter(Boolean).length;
+
+    document.getElementById('survivalCount').textContent = `${survivalCount}/3`;
+
+    // 更新得分
+    disasterScore += survivalCount * 10;
+    document.getElementById('disasterScore').textContent = disasterScore;
+
+    addLog(`📊 存活保险柜: ${survivalCount}/3, 得分: +${survivalCount * 10}`, 'recovery');
+
+    await sleep(1000);
+    document.getElementById('disasterEffect').style.display = 'none';
+
+    // 尝试恢复
+    await attemptAllRecoveries();
+
+    updateDisplay();
+}
+
+// 损坏保险柜
+function damageSafe(target) {
+    if (target === 'native') {
+        nativeData = [0xFF, 0xFF, 0xFF, 0xFF];
+        document.getElementById('nativeSafe').classList.add('damaged');
+        addLog('❌ Native保险柜已损坏！', 'disaster');
+    } else if (target === 'redundant') {
+        if (Math.random() < 0.5) {
+            redundantMain = [0xFF, 0xFF, 0xFF, 0xFF];
+        } else {
+            redundantBackup = [0xFF, 0xFF, 0xFF, 0xFF];
+        }
+        document.getElementById('redundantSafe').classList.add('damaged');
+        addLog('⚠️ Redundant保险柜部分损坏！', 'disaster');
+    } else if (target === 'dataset') {
+        const损坏版本 = Math.floor(Math.random() * 3);
+        datasetVersions[损坏版本] = [0xFF, 0xFF];
+        document.getElementById('datasetSafe').classList.add('damaged');
+        addLog('⚠️ Dataset保险柜丢失1个版本！', 'disaster');
+    }
+}
+
+// 尝试所有恢复
+async function attemptAllRecoveries() {
+    // Native - 无法恢复
+    if (isDataCorrupted(nativeData)) {
+        addLog('❌ Native: 数据永久丢失', 'disaster');
+    }
+
+    // Redundant - 从备份恢复
+    if (isDataCorrupted(redundantMain) && !isDataCorrupted(redundantBackup)) {
+        redundantMain = [...redundantBackup];
+        document.getElementById('redundantSafe').classList.remove('damaged');
+        document.getElementById('redundantSafe').classList.add('safe');
+        addLog('✅ Redundant: 从备份恢复成功', 'recovery');
+    }
+
+    // Dataset - 从历史版本恢复
+    const latestGood = datasetVersions.find(v => !isDataCorrupted(v));
+    if (latestGood && isDataCorrupted(datasetVersions[0])) {
+        datasetVersions[0] = [...latestGood];
+        document.getElementById('datasetSafe').classList.remove('damaged');
+        document.getElementById('datasetSafe').classList.add('safe');
+        addLog('✅ Dataset: 从历史版本恢复成功', 'recovery');
+    }
+}
+
+// 检查数据是否损坏
+function isDataCorrupted(data) {
+    return data.some(byte => byte === 0xFF);
+}
+
+// 选择保险柜
+function selectSafe(safe) {
+    selectedSafe = safe;
+    updateRecommendation();
+}
+
+// 保存金币
+function saveCoins() {
+    const dataType = document.getElementById('dataTypeSelect').value;
+    const recommendations = {
+        'temporary': 'native',
+        'important': 'redundant',
+        'critical': 'redundant',
+        'versioned': 'dataset'
+    };
+
+    const optimal = recommendations[dataType];
+
+    if (!selectedSafe) {
+        alert('请先选择保险柜！');
+        return;
+    }
+
+    const correct = selectedSafe === optimal;
+    let coinChange = 0;
+
+    if (correct) {
+        coinChange = 50;
+        gameScore += 100;
+        addLog(`✅ 正确！${dataType}类型数据应该用${optimal}保险柜`, 'coin');
+    } else {
+        coinChange = -30;
+        addLog(`❌ 错误！${dataType}类型数据应该用${optimal}保险柜`, 'coin');
+    }
+
+    coins += coinChange;
+    document.getElementById('coinCount').textContent = coins;
+    document.getElementById('gameScore').textContent = gameScore;
+
+    // 显示结果
+    const safeNames = {
+        'native': 'Native保险柜',
+        'redundant': 'Redundant保险柜',
+        'dataset': 'Dataset保险柜'
+    };
+
+    document.getElementById('userChoice').textContent = safeNames[selectedSafe];
+    document.getElementById('optimalChoice').textContent = safeNames[optimal];
+    document.getElementById('saveResult').innerHTML = correct ?
+        '<span class="badge bg-success">✅ 正确选择</span>' :
+        '<span class="badge bg-danger">❌ 错误选择</span>';
+    document.getElementById('coinResult').innerHTML = coinChange > 0 ?
+        `<span class="text-success">+${coinChange} 💰</span>` :
+        `<span class="text-danger">${coinChange} 💰</span>`;
+    document.getElementById('coinResult').style.display = 'block';
+
+    if (coins <= 0) {
+        alert('游戏结束！你的金币已耗尽。');
+        resetData();
+    }
+}
+
+// 更新推荐
+function updateRecommendation() {
+    if (currentMode !== 'learning') return;
+
+    const critical = document.getElementById('checkCritical').checked;
+    const version = document.getElementById('checkVersion').checked;
+    const frequent = document.getElementById('checkFrequent').checked;
+
+    let recommendation = '';
+    let reason = '';
+
+    if (version) {
+        recommendation = '⭐ Dataset Block';
+        reason = '需要历史版本管理';
+    } else if (critical) {
+        recommendation = '✅ Redundant Block';
+        reason = '关键数据需要备份';
+    } else if (frequent) {
+        recommendation = '❌ Native Block';
+        reason = '频繁修改且非关键数据';
+    } else {
+        recommendation = '❌ Native Block';
+        reason = '非关键数据，节省存储';
+    }
+
+    document.getElementById('recommendationResult').innerHTML = `
+        <h6>推荐选择: ${recommendation}</h6>
+        <p class="mb-0"><strong>理由:</strong> ${reason}</p>
+    `;
+}
+
+// 更新显示
+function updateDisplay() {
+    // Native
+    updateDataDisplay('nativeData', nativeData, 'Native');
+
+    // Redundant
+    const redundantDisplay = !isDataCorrupted(redundantMain) ? redundantMain :
+        !isDataCorrupted(redundantBackup) ? redundantBackup :
+        [0xFF, 0xFF, 0xFF, 0xFF];
+    updateDataDisplay('redundantData', redundantDisplay, 'Redundant');
+
+    // Dataset
+    const latestDataset = datasetVersions[0];
+    updateDataDisplay('datasetData', latestDataset, `Dataset (版本${datasetVersions.length})`);
+}
+
+// 更新数据显示
+function updateDataDisplay(elementId, data, label) {
+    const element = document.getElementById(elementId);
+    if (data.length === 0) {
+        element.innerHTML = '<p class="text-muted">无数据</p>';
+        return;
+    }
+
+    const corrupted = isDataCorrupted(data);
+    const dataStr = data.map(b => '0x' + b.toString(16).toUpperCase()).join(' ');
+
+    element.innerHTML = `
+        <strong>${label}:</strong><br>
+        <code class="${corrupted ? 'text-danger' : 'text-success'}">${dataStr}</code><br>
+        ${corrupted ? '<small class="text-danger">⚠️ 数据已损坏</small>' : '<small class="text-success">✅ 数据完整</small>'}
+    `;
+}
+
+// 添加日志
+function addLog(message, type = 'info') {
+    const log = document.getElementById('eventLog');
+    const entry = document.createElement('div');
+    entry.className = `log-entry log-${type}`;
+    entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+
+    if (log.querySelector('.text-muted')) {
+        log.innerHTML = '';
+    }
+
+    log.insertBefore(entry, log.firstChild);
+
+    // 限制日志数量
+    while (log.children.length > 50) {
+        log.removeChild(log.lastChild);
+    }
+}
+
+// 辅助函数
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// 页面加载初始化
+document.addEventListener('DOMContentLoaded', function() {
+    init();
+});
+</script>
+{% endblock %}

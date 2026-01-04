@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}EEPROM物理结构 - 可视化仿真{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">📦 EEPROM物理结构 (4KB芯片)</h2>
+
+    <div class="row">
+        <!-- Page网格 -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Page布局 (16 × 256B)</span>
+                    <button class="btn btn-sm btn-outline-primary" onclick="refreshAll()">
+                        🔄 刷新
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="row" id="pagesGrid">
+                        {% for page in pages %}
+                        <div class="col-md-3 mb-3">
+                            <div class="card page-card {{ 'page-erased' if page.state == '已擦除' else 'page-written' }}"
+                                 onclick="showPageDetails({{ page.page_id }})">
+                                <div class="card-body p-2 text-center">
+                                    <h6 class="card-title mb-1">Page #{{ page.page_id }}</h6>
+                                    <small class="text-muted">{{ page.address }}</small>
+                                    <div class="mt-2">
+                                        <span class="badge bg-{{ 'success' if page.state == '已擦除' else 'warning' }}">
+                                            {{ page.state }}
+                                        </span>
+                                    </div>
+                                    <div class="life-bar mt-2">
+                                        <div class="life-fill" style="width: {{ page.life_percent }}%"></div>
+                                    </div>
+                                    <small>寿命: {{ page.life_percent }}%</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page详情 -->
+        <div class="col-md-4">
+            <div class="card" id="pageDetailsCard" style="display:none;">
+                <div class="card-header">
+                    Page详情
+                </div>
+                <div class="card-body">
+                    <h5 id="detailPageId">Page #0</h5>
+                    <p class="text-muted mb-2" id="detailAddress">地址: 0x0000</p>
+
+                    <div class="mb-3">
+                        <strong>状态:</strong>
+                        <span id="detailState" class="badge bg-success">已擦除</span>
+                    </div>
+
+                    <div class="mb-3">
+                        <strong>擦写次数:</strong>
+                        <span id="detailEraseCount">0</span>
+                    </div>
+
+                    <div class="mb-3">
+                        <strong>剩余寿命:</strong>
+                        <div class="progress">
+                            <div id="detailLifeBar" class="progress-bar bg-success" role="progressbar"
+                                 style="width: 100%"></div>
+                        </div>
+                        <small id="detailLifePercent">100%</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <strong>数据预览 (前32字节):</strong>
+                        <div id="detailData" class="hex-display bg-light p-2 mt-1" style="word-break: break-all;">
+                            FF FF FF FF...
+                        </div>
+                    </div>
+
+                    <button class="btn btn-danger btn-sm w-100" onclick="eraseSelectedPage()">
+                        🗑️ 擦除此Page
+                    </button>
+                </div>
+            </div>
+
+            <div class="card" id="welcomeCard">
+                <div class="card-body text-center text-muted">
+                    <p>👈 点击左侧Page查看详情</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedPageId = null;
+
+function showPageDetails(pageId) {
+    selectedPageId = pageId;
+
+    fetch(`/api/page/${pageId}`)
+        .then(response => response.json())
+        .then(page => {
+            document.getElementById('pageDetailsCard').style.display = 'block';
+            document.getElementById('welcomeCard').style.display = 'none';
+
+            document.getElementById('detailPageId').textContent = `Page #${page.page_id}`;
+            document.getElementById('detailAddress').textContent = `地址: ${page.address}`;
+
+            const stateBadge = document.getElementById('detailState');
+            stateBadge.textContent = page.state;
+            stateBadge.className = `badge bg-${page.state === '已擦除' ? 'success' : 'warning'}`;
+
+            document.getElementById('detailEraseCount').textContent = page.erase_count;
+
+            const lifeBar = document.getElementById('detailLifeBar');
+            const lifePercent = page.life_percent;
+            lifeBar.style.width = `${lifePercent}%`;
+            lifeBar.className = `progress-bar bg-${lifePercent > 50 ? 'success' : lifePercent > 20 ? 'warning' : 'danger'}`;
+            document.getElementById('detailLifePercent').textContent = `${lifePercent}%`;
+
+            // 显示前32字节的十六进制
+            const dataHex = page.data_hex.substring(0, 64);
+            const formattedData = dataHex.match(/.{2}/g).join(' ');
+            document.getElementById('detailData').textContent = formattedData + '...';
+        });
+}
+
+function eraseSelectedPage() {
+    if (selectedPageId === null) return;
+
+    fetch(`/api/page/${selectedPageId}/erase`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert(result.message);
+            refreshAll();
+            showPageDetails(selectedPageId);
+        }
+    });
+}
+
+function refreshAll() {
+    location.reload();
+}
+</script>
+{% endblock %}

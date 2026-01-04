@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}写放大现象 - EEPROM可视化{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">📊 实验: 写放大现象</h2>
+
+    <div class="alert alert-info">
+        <strong>💡 核心概念:</strong> EEPROM擦除的最小单位是Page（256字节）。
+        即使只改1个字节，也必须擦除并写回整个Page，这就是写放大。
+    </div>
+
+    <!-- 可视化对比 -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">👤 用户视角</h5>
+                </div>
+                <div class="card-body text-center">
+                    <h3>想要修改: <span id="userIntentSize">4</span> 字节</h3>
+                    <div class="my-4">
+                        <div class="d-inline-block border p-3">
+                            <span id="userBytes">📦 📦 📦 📦</span>
+                        </div>
+                    </div>
+                    <p class="text-muted">4个字节 (32 bits)</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">⚠️ EEPROM实际操作</h5>
+                </div>
+                <div class="card-body text-center">
+                    <h3>实际擦写: <span id="eepromActualSize">256</span> 字节</h3>
+                    <div class="my-4">
+                        <div class="d-inline-block border p-3 bg-warning">
+                            <span id="eepromBytes">📦📦📦...📦</span>
+                        </div>
+                    </div>
+                    <p class="text-muted">整个Page (256字节)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 写放大倍数 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h2>写放大倍数: <span class="badge bg-danger" id="amplificationRatio">64x</span></h2>
+                    <p class="lead text-muted" id="amplificationExplanation">
+                        为了修改 4 字节，实际擦写了 256 字节
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 操作步骤 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>📋 EEPROM内部操作步骤</h5>
+                </div>
+                <div class="card-body">
+                    <ol class="mb-0" id="stepsList">
+                        <li>读出Page #0的 256 字节到RAM</li>
+                        <li>在RAM中修改偏移0处的4字节</li>
+                        <li>擦除Page #0（256字节全部置0xFF）</li>
+                        <li>写回Page #0（256字节）</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 交互实验 -->
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h5>🧪 试试不同大小的修改</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">选择修改大小:</label>
+                        <select id="writeSizeSelect" class="form-select">
+                            <option value="1">1 字节 (写放大: 256x)</option>
+                            <option value="4" selected>4 字节 (写放大: 64x)</option>
+                            <option value="8">8 字节 (写放大: 32x)</option>
+                            <option value="16">16 字节 (写放大: 16x)</option>
+                            <option value="32">32 字节 (写放大: 8x)</option>
+                            <option value="64">64 字节 (写放大: 4x)</option>
+                            <option value="128">128 字节 (写放大: 2x)</option>
+                            <option value="256">256 字节 (写放大: 1x)</option>
+                        </select>
+                    </div>
+                    <button id="simulateBtn" class="btn btn-primary w-100">
+                        🔄 模拟写入
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 可视化图表 -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>📈 写放大对比图</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="amplificationChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+let chart;
+
+// 初始化图表
+function initChart() {
+    const ctx = document.getElementById('amplificationChart').getContext('2d');
+    chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['1B', '4B', '8B', '16B', '32B', '64B', '128B', '256B'],
+            datasets: [
+                {
+                    label: '用户写入 (字节)',
+                    data: [1, 4, 8, 16, 32, 64, 128, 256],
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'EEPROM实际擦写 (字节)',
+                    data: [256, 256, 256, 256, 256, 256, 256, 256],
+                    backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: '字节数'
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        afterBody: function(context) {
+                            const userSize = context[0].raw;
+                            const actualSize = 256;
+                            const ratio = (actualSize / userSize).toFixed(1);
+                            return `写放大倍数: ${ratio}x`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 模拟写入
+document.getElementById('simulateBtn').addEventListener('click', async function() {
+    const writeSize = parseInt(document.getElementById('writeSizeSelect').value);
+
+    try {
+        const response = await fetch('/api/simulate_write', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                page_id: 0,
+                offset: 0,
+                size: writeSize
+            })
+        });
+
+        const result = await response.json();
+
+        // 更新显示
+        document.getElementById('userIntentSize').textContent = result.user_intent.size_bytes;
+        document.getElementById('eepromActualSize').textContent = result.eeprom_actual.erase_size;
+        document.getElementById('amplificationRatio').textContent = `${result.amplification.ratio}x`;
+        document.getElementById('amplificationExplanation').textContent = result.amplification.explanation;
+
+        // 更新步骤
+        const stepsHtml = result.steps.map(step => `<li>${step}</li>`).join('');
+        document.getElementById('stepsList').innerHTML = stepsHtml;
+
+        // 更新用户视角显示
+        const userEmojis = '📦 '.repeat(Math.min(writeSize, 8));
+        document.getElementById('userBytes').textContent = writeSize <= 8 ? userEmojis : `${userEmojis}...`;
+
+    } catch (error) {
+        console.error('Error:', error);
+        alert('模拟失败: ' + error);
+    }
+});
+
+// 页面加载时初始化图表
+document.addEventListener('DOMContentLoaded', function() {
+    initChart();
+});
+</script>
+{% endblock %}

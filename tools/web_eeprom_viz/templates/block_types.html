@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+
+{% block title %}Block类型对比 - EEPROM可视化{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4">📦 NvM Block类型对比与恢复机制</h2>
+
+    <div class="alert alert-info">
+        <strong>💡 核心概念:</strong> NvM支持三种Block类型，提供不同的数据保护级别。
+        <strong>Native</strong>: 单份数据 → <strong>Redundant</strong>: 双份备份 →
+        <strong>Dataset</strong>: 多版本管理。根据数据重要性选择合适的类型。
+    </div>
+
+    <!-- Block类型对比表 -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>📊 Block类型特性对比</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>特性</th>
+                                <th>Native (Block 0)</th>
+                                <th>Redundant (Block 1)</th>
+                                <th>Dataset (Block 2)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>存储结构</strong></td>
+                                <td>单份数据</td>
+                                <td>主数据 + 备份</td>
+                                <td>多版本数据</td>
+                            </tr>
+                            <tr>
+                                <td><strong>存储开销</strong></td>
+                                <td>1x</td>
+                                <td>2x</td>
+                                <td>Nx (版本数量)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>恢复能力</strong></td>
+                                <td><span class="text-danger">❌ 无备份</span></td>
+                                <td><span class="text-success">✅ 备份恢复</span></td>
+                                <td><span class="text-success">✅ 版本回退</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>写放大</strong></td>
+                                <td>1x</td>
+                                <td>2x (写主+备)</td>
+                                <td>Nx (写新版本)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>适用场景</strong></td>
+                                <td>非关键数据</td>
+                                <td>关键数据</td>
+                                <td>需要版本回退的数据</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 当前Block状态 -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>🔍 当前Block状态</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row" id="blockStatusRow">
+                        <!-- Block状态将通过JS动态生成 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 左侧：故障注入 -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-danger">
+                    <h5>⚠️ 故障注入实验</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">选择Block:</label>
+                        <select id="faultBlockSelect" class="form-select">
+                            <option value="0">Block 0 (Native)</option>
+                            <option value="1">Block 1 (Redundant)</option>
+                            <option value="2">Block 2 (Dataset)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">故障类型:</label>
+                        <select id="faultTypeSelect" class="form-select">
+                            <option value="bit_flip">位翻转 (1字节翻转)</option>
+                            <option value="complete_corruption">完全损坏</option>
+                            <option value="backup_corruption">备份损坏 (仅Redundant)</option>
+                            <option value="version_loss">版本丢失 (仅Dataset)</option>
+                        </select>
+                    </div>
+
+                    <button class="btn btn-danger w-100 mb-3" onclick="injectFault()">
+                        💥 注入故障
+                    </button>
+
+                    <!-- 故障日志 -->
+                    <div id="faultLog" class="alert alert-warning" style="display:none;">
+                        <h6>📝 故障日志:</h6>
+                        <div id="faultLogContent"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：恢复实验 -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success">
+                    <h5>🔧 数据恢复实验</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">选择要恢复的Block:</label>
+                        <select id="recoverBlockSelect" class="form-select">
+                            <option value="0">Block 0 (Native)</option>
+                            <option value="1">Block 1 (Redundant)</option>
+                            <option value="2">Block 2 (Dataset)</option>
+                        </select>
+                    </div>
+
+                    <button class="btn btn-success w-100 mb-3" onclick="attemptRecovery()">
+                        🔄 尝试恢复
+                    </button>
+
+                    <!-- 恢复结果 -->
+                    <div id="recoveryResult" style="display:none;">
+                        <h6>📊 恢复结果:</h6>
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <p class="mb-1"><strong>恢复方法:</strong> <span id="recoveryMethod"></span></p>
+                                <p class="mb-1"><strong>恢复状态:</strong> <span id="recoverySuccess"></span></p>
+                                <p class="mb-0"><strong>详细信息:</strong> <span id="recoveryMessage"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dataset版本管理 -->
+    <div class="row mt-3">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-info">
+                    <h5>📚 Dataset版本管理演示</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-secondary">
+                        <strong>说明:</strong> 只有Dataset类型的Block支持版本管理。
+                        每次写入新数据时，旧版本会保存到历史记录中，支持版本回退。
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Block ID (仅支持Dataset):</label>
+                                <select id="versionBlockSelect" class="form-select">
+                                    <option value="2">Block 2 (Dataset)</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">新版本数据 (Hex):</label>
+                                <input type="text" id="newVersionData" class="form-control"
+                                       value="DD" placeholder="例如: DD">
+                            </div>
+
+                            <button class="btn btn-primary w-100" onclick="writeNewVersion()">
+                                ✏️ 写入新版本
+                            </button>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div id="versionHistory">
+                                <h6>📜 版本历史:</h6>
+                                <div id="versionHistoryContent">
+                                    <!-- 版本历史将动态生成 -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 操作控制 -->
+    <div class="row mt-3">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <button class="btn btn-secondary w-100" onclick="resetSimulation()">
+                        🔄 重置所有Block
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 注入故障
+async function injectFault() {
+    const blockId = parseInt(document.getElementById('faultBlockSelect').value);
+    const faultType = document.getElementById('faultTypeSelect').value;
+
+    try {
+        const response = await fetch('/api/blocktypes/inject_fault', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                block_id: blockId,
+                fault_type: faultType
+            })
+        });
+
+        const result = await response.json();
+
+        // Show fault log
+        const faultLog = document.getElementById('faultLog');
+        faultLog.style.display = 'block';
+        document.getElementById('faultLogContent').innerHTML =
+            `<p class="mb-0"><strong>${result.fault_type}</strong> injected into Block ${result.block_id} (${result.block_type})</p>`;
+
+        await updateStatus();
+
+    } catch (error) {
+        console.error('Error:', error);
+        alert('故障注入失败: ' + error);
+    }
+}
+
+// 尝试恢复
+async function attemptRecovery() {
+    const blockId = parseInt(document.getElementById('recoverBlockSelect').value);
+
+    try {
+        const response = await fetch('/api/blocktypes/recover', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({block_id: blockId})
+        });
+
+        const result = await response.json();
+
+        document.getElementById('recoveryResult').style.display = 'block';
+        document.getElementById('recoveryMethod').textContent = result.method;
+        document.getElementById('recoverySuccess').innerHTML = result.success ?
+            '<span class="text-success">✅ 成功</span>' :
+            '<span class="text-danger">❌ 失败</span>';
+        document.getElementById('recoveryMessage').textContent = result.message;
+
+        await updateStatus();
+
+    } catch (error) {
+        console.error('Error:', error);
+        alert('恢复失败: ' + error);
+    }
+}
+
+// 写入新版本 (Dataset)
+async function writeNewVersion() {
+    const blockId = parseInt(document.getElementById('versionBlockSelect').value);
+    const newData = document.getElementById('newVersionData').value.trim() || 'DD';
+
+    try {
+        const response = await fetch('/api/blocktypes/write_version', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                block_id: blockId,
+                new_data: newData
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert(`✅ 版本 ${result.previous_version} → ${result.new_version} 已写入`);
+        } else {
+            alert('❌ ' + result.error);
+        }
+
+        await updateStatus();
+
+    } catch (error) {
+        console.error('Error:', error);
+        alert('写入失败: ' + error);
+    }
+}
+
+// 重置仿真
+async function resetSimulation() {
+    try {
+        await fetch('/api/blocktypes/reset', {method: 'POST'});
+
+        document.getElementById('faultLog').style.display = 'none';
+        document.getElementById('recoveryResult').style.display = 'none';
+
+        await updateStatus();
+
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+// 更新状态
+async function updateStatus() {
+    try {
+        const response = await fetch('/api/blocktypes/status');
+        const status = await response.json();
+
+        // Update block status cards
+        const statusRow = document.getElementById('blockStatusRow');
+        statusRow.innerHTML = Object.entries(status.blocks).map(([bid, block]) => {
+            const typeBadge = {
+                'Native': 'bg-primary',
+                'Redundant': 'bg-success',
+                'Dataset': 'bg-info'
+            }[block.type];
+
+            return `
+                <div class="col-md-4 mb-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <strong>Block ${bid}</strong>
+                            <span class="badge ${typeBadge} ms-2">${block.type}</span>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-1"><strong>版本:</strong> ${block.version}</p>
+                            <p class="mb-1"><strong>版本数:</strong> ${block.num_versions}</p>
+                            <p class="mb-1"><strong>有备份:</strong> ${block.has_backup ? '✅' : '❌'}</p>
+                            <p class="mb-1"><strong>状态:</strong> <span class="${block.is_valid ? 'text-success' : 'text-danger'}">${block.is_valid ? '✅ 有效' : '❌ 损坏'}</span></p>
+                            <p class="mb-0"><strong>CRC16:</strong> <code>${block.checksum}</code></p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Update version history for Dataset (Block 2)
+        if (status.blocks['2']) {
+            const block2 = status.blocks['2'];
+            const historyDiv = document.getElementById('versionHistoryContent');
+            historyDiv.innerHTML = `
+                <p class="mb-1">当前版本: <strong>${block2.version}</strong></p>
+                <p class="mb-1">总版本数: <strong>${block2.num_versions}</strong></p>
+                <p class="mb-0 text-muted">Dataset支持版本回退，可以在数据损坏时恢复到之前的有效版本。</p>
+            `;
+        }
+
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    updateStatus();
+});
+</script>
+{% endblock %}

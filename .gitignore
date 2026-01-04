@@ -27,6 +27,13 @@ __pycache__/
 .Python
 venv/
 env/
+.venv/
+
+# Web visualization (Flask runtime)
+tools/web_eeprom_viz/.venv/
+tools/web_eeprom_viz/__pycache__/
+tools/web_eeprom_viz/*.pyc
+tools/web_eeprom_viz/runtime/
 
 # EEPROM simulation data
 *.bin

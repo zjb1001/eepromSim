@@ -1,0 +1,361 @@
+{% extends "base.html" %}
+
+{% block title %}NvM队列与状态机 - EEPROM可视化{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4">⚙️ NvM Job队列与状态机可视化</h2>
+
+    <div class="row mb-3">
+        <!-- 时间控制 -->
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <label class="form-label">时间倍速:</label>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-outline-primary" onclick="setSpeed(1)">1x</button>
+                                <button class="btn btn-outline-primary" onclick="setSpeed(10)">10x</button>
+                                <button class="btn btn-outline-primary" onclick="setSpeed(100)">100x</button>
+                                <button class="btn btn-outline-danger" onclick="setSpeed(1000)">FASTEST</button>
+                            </div>
+                            <span class="ms-3">虚拟时间: <strong id="virtualTime">0</strong> ms</span>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button class="btn btn-success" onclick="startTick()" id="startBtn">▶️ 开始</button>
+                            <button class="btn btn-warning" onclick="pauseTick()" id="pauseBtn" disabled>⏸️ 暂停</button>
+                            <button class="btn btn-secondary" onclick="singleTick()">⏭️ 单步</button>
+                            <button class="btn btn-danger" onclick="resetSim()">🔄 重置</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 左侧：队列和Job控制 -->
+        <div class="col-md-6">
+            <!-- Job队列 -->
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between">
+                    <span>📋 Job队列</span>
+                    <span class="badge bg-primary">长度: <span id="queueLength">0</span></span>
+                </div>
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                    <div id="jobQueue">
+                        <p class="text-muted text-center">队列为空</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 当前执行的Job -->
+            <div class="card mb-3">
+                <div class="card-header bg-success">
+                    <span>🎯 正在执行</span>
+                </div>
+                <div class="card-body" id="currentJob">
+                    <p class="text-muted text-center">无Job执行中</p>
+                </div>
+            </div>
+
+            <!-- 添加新Job -->
+            <div class="card">
+                <div class="card-header">
+                    <span>➕ 添加新Job</span>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-2">
+                        <div class="col-6">
+                            <label class="form-label">Job类型:</label>
+                            <select id="jobTypeSelect" class="form-select form-select-sm">
+                                <option value="READ">ReadBlock</option>
+                                <option value="WRITE">WriteBlock</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Block ID:</label>
+                            <select id="blockIdSelect" class="form-select form-select-sm">
+                                <option value="0">Block 0</option>
+                                <option value="1">Block 1</option>
+                                <option value="2">Block 2</option>
+                                <option value="3">Block 3</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-6">
+                            <label class="form-label">优先级:</label>
+                            <select id="prioritySelect" class="form-select form-select-sm">
+                                <option value="LOW">LOW</option>
+                                <option value="MED">MED</option>
+                                <option value="HIGH">HIGH</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">
+                                <input type="checkbox" id="immediateCheck"> Immediate插队
+                            </label>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary w-100" onclick="enqueueJob()">
+                        📤 入队
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：状态机与性能指标 -->
+        <div class="col-md-6">
+            <!-- Block状态机 -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <span>🔄 Block状态机</span>
+                </div>
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                    <div id="blockStates">
+                        <!-- Block状态将动态生成 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 性能指标 -->
+            <div class="card">
+                <div class="card-header">
+                    <span>📊 性能指标</span>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <h4 id="completedJobs">0</h4>
+                            <small>已完成</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 id="avgExecTime">0</h4>
+                            <small>平均执行(ms)</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 id="retryCount">0</h4>
+                            <small>重试次数</small>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <strong>最大队列长度:</strong> <span id="maxQueueLen">0</span>
+                        </div>
+                        <div class="col-6">
+                            <strong>超时计数:</strong> <span id="timeoutCount">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let isRunning = false;
+let tickInterval = null;
+let currentSpeed = 1;
+
+// 入队Job
+async function enqueueJob() {
+    const jobType = document.getElementById('jobTypeSelect').value;
+    const blockId = parseInt(document.getElementById('blockIdSelect').value);
+    const priority = document.getElementById('prioritySelect').value;
+    const immediate = document.getElementById('immediateCheck').checked;
+
+    try {
+        const response = await fetch('/api/nvm/enqueue', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                job_type: jobType,
+                block_id: blockId,
+                priority: priority,
+                immediate: immediate
+            })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            await updateDisplay();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+// 单步执行
+async function singleTick() {
+    try {
+        const response = await fetch('/api/nvm/tick', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ms: 10})
+        });
+
+        const snapshot = await response.json();
+        updateDisplayWithData(snapshot);
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+// 更新显示
+async function updateDisplay() {
+    try {
+        const response = await fetch('/api/nvm/metrics');
+        const metrics = await response.json();
+        updateDisplayWithData({metrics: metrics});
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+// 使用快照数据更新显示
+function updateDisplayWithData(snapshot) {
+    const metrics = snapshot.metrics;
+
+    // 更新虚拟时间
+    document.getElementById('virtualTime').textContent = metrics.virtual_time;
+
+    // 更新队列
+    const queueSnapshot = snapshot.queue_snapshot || [];
+    const queueDiv = document.getElementById('jobQueue');
+    if (queueSnapshot.length === 0) {
+        queueDiv.innerHTML = '<p class="text-muted text-center">队列为空</p>';
+    } else {
+        queueDiv.innerHTML = queueSnapshot.map((job, idx) => `
+            <div class="card mb-2 ${job.immediate ? 'border-danger' : ''}">
+                <div class="card-body p-2">
+                    <div class="d-flex justify-content-between">
+                        <strong>#${job.job_id}</strong>
+                        <span class="badge bg-${job.priority === 'HIGH' ? 'danger' : job.priority === 'MED' ? 'warning' : 'secondary'}">
+                            ${job.priority}
+                        </span>
+                        ${job.immediate ? '<span class="badge bg-danger">IMMEDIATE</span>' : ''}
+                    </div>
+                    <small class="text-muted">
+                        ${job.type} Block${job.block_id} | 等待: ${job.wait_time}ms | 状态: ${job.state}
+                    </small>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    document.getElementById('queueLength').textContent = queueSnapshot.length;
+
+    // 更新当前Job
+    const currentJob = snapshot.current_job;
+    const currentJobDiv = document.getElementById('currentJob');
+    if (currentJob) {
+        currentJobDiv.innerHTML = `
+            <div class="card">
+                <div class="card-body">
+                    <h5>#${currentJob.job_id} - ${currentJob.type}</h5>
+                    <p><strong>Block:</strong> ${currentJob.block_id}</p>
+                    <p><strong>状态:</strong> <span class="badge bg-success">${currentJob.state}</span></p>
+                </div>
+            </div>
+        `;
+    } else {
+        currentJobDiv.innerHTML = '<p class="text-muted text-center">无Job执行中</p>';
+    }
+
+    // 更新Block状态
+    const blocks = snapshot.blocks || {};
+    const blocksDiv = document.getElementById('blockStates');
+    blocksDiv.innerHTML = Object.entries(blocks).map(([blockId, block]) => `
+        <div class="card mb-2">
+            <div class="card-body p-2">
+                <strong>Block ${blockId}:</strong>
+                <span class="badge bg-${block.state === 'IDLE' ? 'secondary' : 'primary'} ms-2">${block.state}</span>
+                ${block.history && block.history.length > 0 ? `
+                    <small class="d-block mt-1">
+                        最近: ${block.history.slice(-3).map(h => `${h.state}@${h.timestamp}ms`).join(' → ')}
+                    </small>
+                ` : ''}
+            </div>
+        </div>
+    `).join('');
+
+    // 更新性能指标
+    document.getElementById('completedJobs').textContent = metrics.completed_jobs;
+    document.getElementById('avgExecTime').textContent = metrics.avg_exec_time;
+    document.getElementById('retryCount').textContent = metrics.retry_count;
+    document.getElementById('maxQueueLen').textContent = metrics.max_queue_length;
+    document.getElementById('timeoutCount').textContent = metrics.deadline_miss_count;
+}
+
+// 开始自动执行
+function startTick() {
+    if (!isRunning) {
+        isRunning = true;
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('pauseBtn').disabled = false;
+
+        tickInterval = setInterval(async () => {
+            await singleTick();
+        }, 1000 / currentSpeed);
+    }
+}
+
+// 暂停
+function pauseTick() {
+    isRunning = false;
+    document.getElementById('startBtn').disabled = false;
+    document.getElementById('pauseBtn').disabled = true;
+
+    if (tickInterval) {
+        clearInterval(tickInterval);
+        tickInterval = null;
+    }
+}
+
+// 设置倍速
+async function setSpeed(speed) {
+    currentSpeed = speed;
+
+    // 更新API
+    try {
+        await fetch('/api/nvm/time_scale', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({scale: speed})
+        });
+    } catch (error) {
+        console.error('Error:', error);
+    }
+
+    // 如果正在运行，重启定时器
+    if (isRunning) {
+        pauseTick();
+        startTick();
+    }
+}
+
+// 重置
+async function resetSim() {
+    pauseTick();
+
+    try {
+        await fetch('/api/nvm/reset', {
+            method: 'POST'
+        });
+        await updateDisplay();
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    updateDisplay();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,9 @@
+[project]
+name = "web-eeprom-viz"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "crcmod>=1.7",
+    "flask>=3.1.2",
+]

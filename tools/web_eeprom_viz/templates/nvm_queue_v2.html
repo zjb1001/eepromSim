@@ -1,0 +1,777 @@
+{% extends "base.html" %}
+
+{% block title %}NvM队列 - Job调度指挥官{% endblock %}
+
+{% block content %}
+<div class="page-shell container-fluid h-100 d-flex flex-column">
+    <!-- 顶部标题 -->
+    <div class="mb-3">
+        <h2 class="mb-2">🚦 Job调度指挥官: 紧急任务大考验！</h2>
+        <div class="alert alert-info mb-0">
+            <strong>🎯 任务目标:</strong> 作为NvM调度员，你需要管理Job队列，处理不同优先级的任务！<br>
+            <small>挑战：在紧急任务（IMMEDIATE）不断插入时，保持系统高效运行，避免队列堵塞！</small>
+        </div>
+    </div>
+
+    <!-- 左右布局: 左侧可视化，右侧操作 -->
+    <div class="row flex-grow-1 g-3">
+        <!-- 左侧: 可视化区域 (58%) -->
+        <div class="col-lg-7">
+            <div class="d-flex flex-column gap-3 h-100">
+                <!-- Job队列 -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between">
+                        <h5 class="mb-0">📋 Job队列 (横向视图)</h5>
+                        <div>
+                            <span class="badge bg-primary me-2">队列长度: <span id="queueLength">0</span></span>
+                            <span class="badge bg-warning">等待中: <span id="waitingCount">0</span></span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="horizontalQueue" class="horizontal-queue" style="min-height: 100px;">
+                            <!-- Job卡片横向排列 -->
+                            <div class="queue-empty">队列为空</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 当前执行 + 状态机 -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <!-- 当前执行的Job -->
+                        <div class="card h-100">
+                            <div class="card-header bg-success">
+                                <h5 class="mb-0">🎯 正在执行</h5>
+                            </div>
+                            <div class="card-body" id="currentJob">
+                                <div class="text-center text-muted">
+                                    <p>无Job执行中</p>
+                                    <small>NvM空闲</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <!-- 状态机可视化 -->
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h5 class="mb-0">🔄 状态机旅程</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="state-machine-viz">
+                                    <div class="state-node" id="state-idle">
+                            <div class="state-circle bg-secondary">IDLE</div>
+                        </div>
+                        <div class="state-arrow">→</div>
+                        <div class="state-node" id="state-reading">
+                            <div class="state-circle bg-primary">READING</div>
+                        </div>
+                        <div class="state-arrow">→</div>
+                        <div class="state-node" id="state-verifying">
+                            <div class="state-circle bg-info">VERIFYING</div>
+                        </div>
+                        <div class="state-arrow">→</div>
+                        <div class="state-node" id="state-completing">
+                            <div class="state-circle bg-success">COMPLETING</div>
+                        </div>
+                    </div>
+                    <div class="mt-3 text-center">
+                        <small class="text-muted">当前状态: <strong id="currentStateText">IDLE</strong></small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <!-- 添加新Job -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">➕ 手动添加Job</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-2">
+                        <div class="col-6">
+                            <label class="form-label">Job类型:</label>
+                            <select id="jobTypeSelect" class="form-select form-select-sm">
+                                <option value="READ">📖 ReadBlock</option>
+                                <option value="WRITE">✏️ WriteBlock</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Block ID:</label>
+                            <select id="blockIdSelect" class="form-select form-select-sm">
+                                <option value="0">Block 0</option>
+                                <option value="1">Block 1</option>
+                                <option value="2">Block 2</option>
+                                <option value="3">Block 3</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-6">
+                            <label class="form-label">优先级:</label>
+                            <select id="prioritySelect" class="form-select form-select-sm">
+                                <option value="LOW">🟢 LOW</option>
+                                <option value="MED">🟡 MED</option>
+                                <option value="HIGH">🔴 HIGH</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">
+                                <input type="checkbox" id="immediateCheck"> ⚡ Immediate插队
+                            </label>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary w-100" onclick="manualEnqueue()">
+                        📤 手动入队
+                    </button>
+                    <hr>
+                    <div class="alert alert-warning small">
+                        <strong>提示:</strong>
+                        <ul class="mb-0">
+                            <li>⚡ Immediate任务会插队到队列最前面</li>
+                            <li>🔴 HIGH优先级在普通任务中优先执行</li>
+                            <li>📺 观察状态机的实时变化</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 性能指标 -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-primary" id="completedJobs">0</h3>
+                    <p class="mb-0">已完成Job</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-success" id="avgExecTime">0</h3>
+                    <p class="mb-0">平均耗时(ms)</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-warning" id="retryCount">0</h3>
+                    <p class="mb-0">重试次数</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-danger" id="maxQueueLen">0</h3>
+                    <p class="mb-0">最大队列长度</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <!-- 右侧: 操作面板 (42%) -->
+        <div class="col-lg-5">
+            <div class="d-flex flex-column gap-3 h-100">
+                <!-- 挑战模式 -->
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">🎮 挑战模式</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2 mb-3">
+                            <button class="btn btn-success" onclick="startChallenge('normal')">
+                                🌿 正常模式
+                            </button>
+                            <button class="btn btn-warning" onclick="startChallenge('emergency')">
+                                ⚡ 紧急模式
+                            </button>
+                            <button class="btn btn-danger" onclick="startChallenge('congestion')">
+                                🌪️ 堵塞模式
+                            </button>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-6">
+                                <label class="form-label small">动画速度:</label>
+                                <select id="speedSelect" class="form-select form-select-sm">
+                                    <option value="500">慢速</option>
+                                    <option value="200" selected>正常</option>
+                                    <option value="50">快速</option>
+                                    <option value="0">瞬间</option>
+                                </select>
+                            </div>
+                            <div class="col-6 text-end">
+                                <button class="btn btn-secondary btn-sm w-100" onclick="resetSim()">
+                                    🔄 重置
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 手动添加Job -->
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">➕ 手动添加Job</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <label class="form-label small">优先级:</label>
+                            <select id="jobPriority" class="form-select form-select-sm">
+                                <option value="LOW">LOW (低)</option>
+                                <option value="MEDIUM">MEDIUM (中)</option>
+                                <option value="HIGH">HIGH (高)</option>
+                                <option value="IMMEDIATE">IMMEDIATE (紧急)</option>
+                            </select>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary btn-sm" onclick="addManualJob()">
+                                📝 添加单个Job
+                            </button>
+                            <button class="btn btn-success btn-sm" onclick="startAutoQueue()" id="autoQueueBtn">
+                                🤖 自动生成Job
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 事件日志 -->
+                <div class="card flex-grow-1">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">📋 调度事件日志</h5>
+                    </div>
+                    <div class="card-body" style="max-height: 250px; overflow-y: auto; font-size: 12px;">
+                        <div id="eventLog">
+                            <p class="text-muted text-center">等待Job入队...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 成功庆祝模态框 -->
+    <div class="modal" id="challengeCompleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">🎉 挑战完成！</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <h6>✅ 你成功完成了挑战！</h6>
+                    <div id="challengeSummary"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+                        继续探索
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* 确保主要内容区域充满可用空间，但不影响导航栏容器 */
+.page-shell {
+    min-height: calc(100vh - 100px);
+}
+
+.horizontal-queue {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 10px;
+    min-height: 100px;
+    align-items: center;
+    max-width: 100%;
+}
+
+.queue-empty {
+    width: 100%;
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    font-size: 0.9em;
+}
+
+.job-card {
+    min-width: 120px;
+    max-width: 120px;
+    padding: 8px;
+    border-radius: 4px;
+    animation: job-enter 0.5s ease-out;
+    position: relative;
+    transition: all 0.3s;
+    font-size: 0.9em;
+}
+
+.job-card:hover {
+    transform: scale(1.05);
+    z-index: 10;
+}
+
+.job-card.immediate {
+    border: 3px solid #dc3545;
+    animation: job-drop-in 0.6s ease-out, immediate-pulse 1s infinite;
+}
+
+.job-card.high-priority {
+    border: 2px solid #dc3545;
+}
+
+.job-card.med-priority {
+    border: 2px solid #ffc107;
+}
+
+.job-card.low-priority {
+    border: 2px solid #28a745;
+}
+
+@keyframes job-enter {
+    from {
+        opacity: 0;
+        transform: translateX(-100px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes job-drop-in {
+    0% {
+        opacity: 0;
+        transform: translateY(-100px) scale(0.5);
+    }
+    60% {
+        transform: translateY(10px) scale(1.1);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes immediate-pulse {
+    0%, 100% {
+        box-shadow: 0 0 5px rgba(220, 53, 69, 0.5);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(220, 53, 69, 0.8);
+    }
+}
+
+.state-machine-viz {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 20px;
+}
+
+.state-node {
+    text-align: center;
+}
+
+.state-circle {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: white;
+    font-size: 12px;
+    transition: all 0.3s;
+    border: 3px solid transparent;
+}
+
+.state-circle.active {
+    transform: scale(1.2);
+    box-shadow: 0 0 20px rgba(0, 123, 255, 0.6);
+    border-color: #007bff;
+}
+
+.state-arrow {
+    font-size: 24px;
+    color: #6c757d;
+    font-weight: bold;
+}
+
+.log-entry {
+    padding: 8px 10px;
+    margin-bottom: 5px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 12px;
+    border-left: 4px solid #007bff;
+}
+
+.log-enqueue { background: #d1ecf1; border-left-color: #17a2b8; }
+.log-execute { background: #d4edda; border-left-color: #28a745; }
+.log-immediate { background: #f8d7da; border-left-color: #dc3545; }
+.log-complete { background: #cce5ff; border-left-color: #004085; }
+
+/* 响应式 */
+@media (max-width: 991px) {
+    .page-shell {
+        min-height: auto;
+    }
+
+    .horizontal-queue {
+        min-height: 80px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let jobQueue = [];
+let currentJob = null;
+let currentState = 'IDLE';
+let completedJobs = 0;
+let retryCount = 0;
+let maxQueueLen = 0;
+let autoQueueInterval = null;
+let currentChallenge = null;
+let jobCounter = 0;
+
+// 初始化
+function init() {
+    updateDisplay();
+    addLog('🚀 NvM调度系统已启动', 'info');
+}
+
+// 开始挑战
+function startChallenge(mode) {
+    currentChallenge = mode;
+    resetSim();
+
+    let challengeName = {
+        'normal': '🌿 正常模式',
+        'emergency': '⚡ 紧急模式',
+        'congestion': '🌪️ 堵塞模式'
+    }[mode];
+
+    addLog(`🎮 开始挑战: ${challengeName}`, 'info');
+
+    // 根据模式自动生成Job
+    if (mode === 'normal') {
+        generateJobs(5, 0);
+    } else if (mode === 'emergency') {
+        generateJobs(3, 0);
+        setTimeout(() => generateJobs(5, 3), 2000);
+    } else if (mode === 'congestion') {
+        generateJobs(10, 0);
+        setTimeout(() => generateJobs(10, 5), 3000);
+    }
+}
+
+// 生成Job
+function generateJobs(count, immediateCount) {
+    for (let i = 0; i < count; i++) {
+        const isImmediate = i < immediateCount;
+        const priority = ['LOW', 'MED', 'HIGH'][Math.floor(Math.random() * 3)];
+        const type = ['READ', 'WRITE'][Math.floor(Math.random() * 2)];
+        const blockId = Math.floor(Math.random() * 4);
+
+        enqueueJobInternal(type, blockId, priority, isImmediate);
+    }
+}
+
+// 手动入队
+function manualEnqueue() {
+    const type = document.getElementById('jobTypeSelect').value;
+    const blockId = parseInt(document.getElementById('blockIdSelect').value);
+    const priority = document.getElementById('prioritySelect').value;
+    const immediate = document.getElementById('immediateCheck').checked;
+
+    enqueueJobInternal(type, blockId, priority, immediate);
+}
+
+// 内部入队函数
+async function enqueueJobInternal(type, blockId, priority, immediate) {
+    jobCounter++;
+    const job = {
+        job_id: jobCounter,
+        type: type,
+        block_id: blockId,
+        priority: priority,
+        immediate: immediate,
+        state: 'QUEUED',
+        wait_time: 0,
+        enqueue_time: Date.now()
+    };
+
+    // Immediate任务插队到最前面
+    if (immediate) {
+        jobQueue.unshift(job);
+        addLog(`⚡ Job #${job.job_id} 插队入队！`, 'immediate');
+    } else {
+        // 按优先级排序（HIGH在前）
+        const priorityOrder = { 'HIGH': 0, 'MED': 1, 'LOW': 2 };
+        const insertIdx = jobQueue.findIndex(j => priorityOrder[j.priority] > priorityOrder[priority]);
+        if (insertIdx >= 0) {
+            jobQueue.splice(insertIdx, 0, job);
+        } else {
+            jobQueue.push(job);
+        }
+        addLog(`📤 Job #${job.job_id} 入队 (${priority}优先级)`, 'enqueue');
+    }
+
+    maxQueueLen = Math.max(maxQueueLen, jobQueue.length);
+    updateDisplay();
+
+    // 如果空闲，立即执行
+    if (currentState === 'IDLE' && !currentJob) {
+        await executeNextJob();
+    }
+}
+
+// 执行下一个Job
+async function executeNextJob() {
+    if (jobQueue.length === 0) {
+        currentState = 'IDLE';
+        updateDisplay();
+        return;
+    }
+
+    const job = jobQueue.shift();
+    currentJob = job;
+    currentState = 'READING';
+    updateDisplay();
+
+    const speed = parseInt(document.getElementById('speedSelect').value);
+    addLog(`🎯 开始执行 Job #${job.job_id} - ${job.type} Block${job.block_id}`, 'execute');
+
+    // 模拟状态机转换
+    await sleep(speed);
+    currentState = 'VERIFYING';
+    updateDisplay();
+
+    await sleep(speed);
+    currentState = 'COMPLETING';
+    updateDisplay();
+
+    await sleep(speed);
+
+    // 完成
+    completedJobs++;
+    addLog(`✅ Job #${job.job_id} 完成！`, 'complete');
+
+    currentJob = null;
+
+    // 检查是否完成挑战
+    if (jobQueue.length === 0 && currentChallenge) {
+        showChallengeComplete();
+    }
+
+    // 继续执行下一个
+    await executeNextJob();
+}
+
+// 更新显示
+function updateDisplay() {
+    // 更新队列
+    const queueDiv = document.getElementById('horizontalQueue');
+    if (jobQueue.length === 0) {
+        queueDiv.innerHTML = '<div class="queue-empty">队列为空</div>';
+    } else {
+        queueDiv.innerHTML = jobQueue.map(job => {
+            const priorityClass = {
+                'HIGH': 'high-priority',
+                'MED': 'med-priority',
+                'LOW': 'low-priority'
+            }[job.priority];
+
+            const bgClass = job.immediate ? 'bg-danger' : 'bg-light';
+
+            return `
+                <div class="card job-card ${priorityClass} ${job.immediate ? 'immediate' : ''} ${bgClass}">
+                    <div class="card-body p-2">
+                        <div class="d-flex justify-content-between">
+                            <strong>#${job.job_id}</strong>
+                            <span class="badge badge-sm bg-${job.priority === 'HIGH' ? 'danger' : job.priority === 'MED' ? 'warning' : 'success'}">
+                                ${job.priority}
+                            </span>
+                        </div>
+                        <div class="small mt-1">
+                            ${job.type}<br>
+                            Block ${job.block_id}
+                        </div>
+                        ${job.immediate ? '<div class="text-danger small mt-1">⚡ IMMEDIATE</div>' : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    document.getElementById('queueLength').textContent = jobQueue.length;
+    document.getElementById('waitingCount').textContent = jobQueue.filter(j => !j.immediate).length;
+
+    // 更新当前Job
+    const currentJobDiv = document.getElementById('currentJob');
+    if (currentJob) {
+        const priorityColor = currentJob.priority === 'HIGH' ? 'danger' : currentJob.priority === 'MED' ? 'warning' : 'success';
+        currentJobDiv.innerHTML = `
+            <div class="card border-${priorityColor}">
+                <div class="card-body">
+                    <h5>Job #${currentJob.job_id} - ${currentJob.type}</h5>
+                    <p><strong>Block:</strong> ${currentJob.block_id}</p>
+                    <p><strong>优先级:</strong> <span class="badge bg-${priorityColor}">${currentJob.priority}</span></p>
+                    ${currentJob.immediate ? '<span class="badge bg-danger">⚡ IMMEDIATE</span>' : ''}
+                    <p class="mt-2"><strong>状态:</strong> <span class="badge bg-primary">${currentState}</span></p>
+                </div>
+            </div>
+        `;
+    } else {
+        currentJobDiv.innerHTML = `
+            <div class="text-center text-muted">
+                <p>无Job执行中</p>
+                <small>NvM空闲 - ${currentState}</small>
+            </div>
+        `;
+    }
+
+    // 更新状态机
+    document.querySelectorAll('.state-circle').forEach(el => el.classList.remove('active'));
+    const stateId = 'state-' + currentState.toLowerCase();
+    const stateEl = document.getElementById(stateId);
+    if (stateEl) {
+        stateEl.querySelector('.state-circle').classList.add('active');
+    }
+    document.getElementById('currentStateText').textContent = currentState;
+
+    // 更新性能指标
+    document.getElementById('completedJobs').textContent = completedJobs;
+    document.getElementById('avgExecTime').textContent = completedJobs > 0 ? (150 + Math.random() * 50).toFixed(0) : 0;
+    document.getElementById('retryCount').textContent = retryCount;
+    document.getElementById('maxQueueLen').textContent = maxQueueLen;
+}
+
+// 添加日志
+function addLog(message, type = 'enqueue') {
+    const log = document.getElementById('eventLog');
+    const entry = document.createElement('div');
+    entry.className = `log-entry log-${type}`;
+    entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+
+    if (log.querySelector('.text-muted')) {
+        log.innerHTML = '';
+    }
+
+    log.insertBefore(entry, log.firstChild);
+
+    // 限制日志数量
+    while (log.children.length > 50) {
+        log.removeChild(log.lastChild);
+    }
+}
+
+// 显示挑战完成
+function showChallengeComplete() {
+    const modal = new bootstrap.Modal(document.getElementById('challengeCompleteModal'));
+
+    const summary = {
+        'normal': `
+            <p>你成功完成了正常模式挑战！</p>
+            <ul>
+                <li>✅ 完成 ${completedJobs} 个Job</li>
+                <li>✅ 理解了FIFO队列机制</li>
+                <li>📚 知识点: 任务按入队顺序执行</li>
+            </ul>
+        `,
+        'emergency': `
+            <p>你成功应对了紧急任务挑战！</p>
+            <ul>
+                <li>✅ 完成 ${completedJobs} 个Job (含IMMEDIATE任务)</li>
+                <li>✅ 理解了插队机制的影响</li>
+                <li>📚 知识点: Immediate任务打断正常队列</li>
+            </ul>
+        `,
+        'congestion': `
+            <p>你完成了极限压力测试！</p>
+            <ul>
+                <li>✅ 完成 ${completedJobs} 个Job</li>
+                <li>✅ 最大队列长度: ${maxQueueLen}</li>
+                <li>📚 知识点: 队列过长会导致性能下降</li>
+            </ul>
+        `
+    }[currentChallenge];
+
+    document.getElementById('challengeSummary').innerHTML = summary;
+    modal.show();
+
+    currentChallenge = null;
+}
+
+// 自动生成Job
+function startAutoQueue() {
+    if (autoQueueInterval) {
+        clearInterval(autoQueueInterval);
+        autoQueueInterval = null;
+        document.getElementById('autoQueueBtn').textContent = '🤖 自动生成Job';
+        document.getElementById('autoQueueBtn').classList.remove('btn-danger');
+        document.getElementById('autoQueueBtn').classList.add('btn-success');
+    } else {
+        autoQueueInterval = setInterval(() => {
+            const isImmediate = Math.random() < 0.2;
+            const priority = ['LOW', 'MED', 'HIGH'][Math.floor(Math.random() * 3)];
+            const type = ['READ', 'WRITE'][Math.floor(Math.random() * 2)];
+            const blockId = Math.floor(Math.random() * 4);
+            enqueueJobInternal(type, blockId, priority, isImmediate);
+        }, 1000);
+
+        document.getElementById('autoQueueBtn').textContent = '⏹️ 停止生成';
+        document.getElementById('autoQueueBtn').classList.remove('btn-success');
+        document.getElementById('autoQueueBtn').classList.add('btn-danger');
+    }
+}
+
+// 重置
+function resetSim() {
+    if (autoQueueInterval) {
+        clearInterval(autoQueueInterval);
+        autoQueueInterval = null;
+        document.getElementById('autoQueueBtn').textContent = '🤖 自动生成Job';
+        document.getElementById('autoQueueBtn').classList.remove('btn-danger');
+        document.getElementById('autoQueueBtn').classList.add('btn-success');
+    }
+
+    jobQueue = [];
+    currentJob = null;
+    currentState = 'IDLE';
+    completedJobs = 0;
+    retryCount = 0;
+    maxQueueLen = 0;
+    jobCounter = 0;
+    currentChallenge = null;
+
+    document.getElementById('eventLog').innerHTML = '<p class="text-muted text-center">等待Job入队...</p>';
+
+    updateDisplay();
+    addLog('🔄 系统已重置', 'info');
+}
+
+// 辅助函数
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// 页面加载初始化
+document.addEventListener('DOMContentLoaded', function() {
+    init();
+});
+</script>
+{% endblock %}

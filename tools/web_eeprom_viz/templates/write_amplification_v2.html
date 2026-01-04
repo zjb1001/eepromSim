@@ -1,0 +1,479 @@
+{% extends "base.html" %}
+
+{% block title %}写放大可视化 - EEPROM交互式学习{% endblock %}
+
+{% block content %}
+<div class="page-shell container-fluid h-100 d-flex flex-column">
+    <!-- 顶部标题 -->
+    <div class="mb-3">
+        <h2 class="mb-2">🔬 实验: 为什么修改1字节要擦除256字节？</h2>
+        <div class="alert alert-warning mb-0">
+            <strong>🎯 任务:</strong> 尝试修改Page中红色的一个字节，观察EEPROM实际做了什么操作！
+        </div>
+    </div>
+
+    <!-- 左右布局: 左侧可视化，右侧操作 -->
+    <div class="row flex-grow-1 g-3">
+        <!-- 左侧: 可视化区域 (58%) -->
+        <div class="col-lg-7">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">📦 EEPROM Page #0 可视化 (256字节)</h5>
+                    <div>
+                        <span class="badge bg-secondary me-2">擦除次数: <span id="eraseCount">0</span></span>
+                        <span class="badge bg-info">寿命: <span id="lifePercent">100</span>%</span>
+                    </div>
+                </div>
+                <div class="card-body d-flex flex-column">
+                    <!-- Page字节网格 -->
+                    <div id="pageGrid" class="eeprom-grid mb-3 flex-grow-1">
+                        <!-- 16行 x 16列 = 256字节 -->
+                    </div>
+
+                    <!-- 图例 -->
+                    <div class="d-flex justify-content-center gap-4 flex-wrap">
+                        <div class="d-flex align-items-center">
+                            <div class="grid-cell-example" style="background: #e9ecef;"></div>
+                            <small>未写入 (0xFF)</small>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <div class="grid-cell-example" style="background: #a8dadc;"></div>
+                            <small>已写入数据</small>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <div class="grid-cell-example" style="background: #ff6b6b;"></div>
+                            <small>目标位置</small>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <div class="grid-cell-example" style="background: #ffd93d;"></div>
+                            <small>正在擦除</small>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <div class="grid-cell-example" style="background: #6bcf7f;"></div>
+                            <small>正在写入</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧: 操作面板 (42%) -->
+        <div class="col-lg-5">
+            <div class="d-flex flex-column gap-3 h-100">
+                <!-- 修改目标卡片 -->
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">🎯 修改目标设置</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">目标位置 (字节偏移):</label>
+                            <input type="range" id="offsetSlider" class="form-range" min="0" max="255" value="10">
+                            <div class="text-center">
+                                <span class="badge bg-primary" style="font-size: 1.2em;">偏移: <span id="offsetDisplay">10</span></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">新数据 (1字节):</label>
+                            <select id="newDataSelect" class="form-select">
+                                <option value="00">0x00 (全0)</option>
+                                <option value="AA">0xAA (10101010)</option>
+                                <option value="55">0x55 (01010101)</option>
+                                <option value="FF">0xFF (全1)</option>
+                            </select>
+                        </div>
+
+                        <div class="alert alert-secondary mb-0">
+                            <div class="mb-2">
+                                <strong>当前值:</strong> <code id="currentValue">0xFF</code>
+                            </div>
+                            <div class="mb-2">
+                                <strong>新值:</strong> <code id="newValue">0x00</code>
+                            </div>
+                            <div>
+                                <strong>需要擦除?</strong> <span id="needErase" class="badge bg-danger">是 ❌</span>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary w-100" id="writeBtn" onclick="attemptWrite()">
+                            ✏️ 尝试写入
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 操作日志卡片 -->
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">📋 操作日志</h5>
+                    </div>
+                    <div class="card-body" style="max-height: 250px; overflow-y: auto;">
+                        <div id="operationLog">
+                            <p class="text-muted text-center">等待操作...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 写放大统计卡片 -->
+                <div class="card flex-grow-1">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">📊 写放大统计</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center g-3">
+                            <div class="col-6">
+                                <div class="stat-box">
+                                    <h3 class="text-primary mb-0" id="userIntent">1</h3>
+                                    <small>用户写入 (字节)</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="stat-box">
+                                    <h3 class="text-warning mb-0" id="actualErase">0</h3>
+                                    <small>擦除 (字节)</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="stat-box">
+                                    <h3 class="text-success mb-0" id="actualWrite">0</h3>
+                                    <small>写入 (字节)</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="stat-box">
+                                    <h3 class="text-danger mb-0" id="amplification">0x</h3>
+                                    <small>放大倍数</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="alert alert-info mb-0">
+                            <h6 class="mb-2">💡 知识点:</h6>
+                            <p class="small mb-0">
+                                EEPROM修改1个字节，实际需要擦除整个Page（256字节），
+                                这就是<strong>写放大</strong>现象！
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* 确保主要内容区域充满可用空间，但不影响导航栏容器 */
+.page-shell {
+    min-height: calc(100vh - 100px);
+}
+
+/* EEPROM网格 */
+.eeprom-grid {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 0;
+    background: #dee2e6;
+    padding: 2px;
+    border-radius: 2px;
+    min-height: 220px;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.grid-cell {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 5px;
+    font-family: monospace;
+    background: #e9ecef;
+    border: 1px solid #dee2e6;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    min-height: 14px;
+}
+
+.grid-cell:hover {
+    transform: scale(1.1);
+    z-index: 10;
+}
+
+.grid-cell.data-written {
+    background: #a8dadc;
+    font-weight: bold;
+}
+
+.grid-cell.target {
+    background: #ff6b6b;
+    font-weight: bold;
+    animation: pulse 1s infinite;
+}
+
+.grid-cell.erasing {
+    background: #ffd93d;
+    animation: flash 0.3s;
+}
+
+.grid-cell.writing {
+    background: #6bcf7f;
+    animation: flash 0.3s;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); box-shadow: 0 0 15px rgba(255, 107, 107, 0.6); }
+}
+
+@keyframes flash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* 图例 */
+.grid-cell-example {
+    width: 20px;
+    height: 20px;
+    border-radius: 2px;
+    margin-right: 5px;
+}
+
+/* 操作日志 */
+.log-entry {
+    padding: 8px;
+    margin-bottom: 5px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: monospace;
+    border-left: 3px solid #28a745;
+}
+
+.log-entry.info {
+    background: #d1ecf1;
+    border-left-color: #17a2b8;
+}
+
+.log-entry.erase {
+    background: #fff3cd;
+    border-left-color: #ffc107;
+}
+
+.log-entry.write {
+    background: #d4edda;
+    border-left-color: #28a745;
+}
+
+/* 统计框 */
+.stat-box {
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+/* 响应式 */
+@media (max-width: 991px) {
+    .page-shell {
+        min-height: auto;
+    }
+
+    .eeprom-grid {
+        min-height: 300px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let pageData = new Array(256).fill(0xFF);
+let eraseCount = 0;
+let targetOffset = 10;
+let isAnimating = false;
+
+// 初始化Page
+function initPage() {
+    // 预先写入一些数据
+    for (let i = 0; i < 50; i++) {
+        pageData[i] = Math.floor(Math.random() * 256);
+    }
+    updateDisplay();
+    updateAnalysis();
+}
+
+// 更新显示
+function updateDisplay() {
+    const grid = document.getElementById('pageGrid');
+    grid.innerHTML = '';
+
+    for (let i = 0; i < 256; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'grid-cell';
+        cell.textContent = pageData[i].toString(16).toUpperCase().padStart(2, '0');
+
+        // 应用样式
+        if (pageData[i] !== 0xFF) {
+            cell.classList.add('data-written');
+        }
+
+        if (i === targetOffset) {
+            cell.classList.add('target');
+        }
+
+        cell.onclick = () => selectOffset(i);
+        grid.appendChild(cell);
+    }
+
+    // 更新统计
+    document.getElementById('eraseCount').textContent = eraseCount;
+    document.getElementById('lifePercent').textContent = Math.max(0, 100 - eraseCount);
+}
+
+// 更新分析
+function updateAnalysis() {
+    const current = pageData[targetOffset];
+    const newHex = document.getElementById('newDataSelect').value;
+    const newValue = parseInt(newHex, 16);
+
+    document.getElementById('currentValue').textContent = '0x' + current.toString(16).toUpperCase().padStart(2, '0');
+    document.getElementById('newValue').textContent = '0x' + newValue.toString(16).toUpperCase().padStart(2, '0');
+
+    const needErase = (current & newValue) !== current;
+    const eraseSpan = document.getElementById('needErase');
+
+    if (needErase) {
+        eraseSpan.className = 'badge bg-danger';
+        eraseSpan.textContent = '是 ❌';
+    } else {
+        eraseSpan.className = 'badge bg-success';
+        eraseSpan.textContent = '否 ✅';
+    }
+}
+
+// 选择偏移
+function selectOffset(offset) {
+    targetOffset = offset;
+    document.getElementById('offsetSlider').value = offset;
+    document.getElementById('offsetDisplay').textContent = offset;
+    updateDisplay();
+    updateAnalysis();
+}
+
+// 尝试写入
+async function attemptWrite() {
+    if (isAnimating) return;
+
+    const newHex = document.getElementById('newDataSelect').value;
+    const newValue = parseInt(newHex, 16);
+    const currentValue = pageData[targetOffset];
+    const needErase = (currentValue & newValue) !== currentValue;
+
+    addLog('用户意图: 写入 1 字节到偏移 ' + targetOffset, 'info');
+    document.getElementById('userIntent').textContent = '1';
+
+    if (needErase) {
+        // 需要擦除
+        addLog('检测到需要擦除...', 'info');
+
+        // 擦除动画
+        isAnimating = true;
+        await erasePage();
+
+        // 写入
+        await performWrite(newValue);
+
+        isAnimating = false;
+    } else {
+        // 直接写入
+        addLog('可以直接写入，无需擦除', 'info');
+        isAnimating = true;
+        await performWrite(newValue);
+        isAnimating = false;
+    }
+}
+
+// 擦除Page
+async function erasePage() {
+    addLog('🧹 开始擦除 Page #0 (256字节)...', 'erase');
+
+    // 擦除动画
+    for (let i = 0; i < 256; i++) {
+        const cells = document.querySelectorAll('.grid-cell');
+        cells[i].classList.add('erasing');
+
+        await sleep(2);
+
+        cells[i].classList.remove('erasing');
+        pageData[i] = 0xFF;
+        cells[i].textContent = 'FF';
+        cells[i].classList.remove('data-written');
+    }
+
+    eraseCount++;
+    document.getElementById('actualErase').textContent = '256';
+    updateDisplay();
+
+    addLog('✅ Page擦除完成！擦除了 256 字节', 'erase');
+}
+
+// 执行写入
+async function performWrite(newValue) {
+    addLog('✏️ 开始写入数据...', 'write');
+
+    const cells = document.querySelectorAll('.grid-cell');
+    cells[targetOffset].classList.add('writing');
+
+    await sleep(300);
+
+    pageData[targetOffset] = newValue;
+    updateDisplay();
+
+    document.getElementById('actualWrite').textContent = '256';
+
+    const amp = Math.round(256 / 1);
+    document.getElementById('amplification').textContent = amp + 'x';
+
+    addLog('✅ 写入完成！', 'write');
+    addLog('📊 写放大倍数: ' + amp + 'x (修改1字节，擦除256字节)', 'info');
+}
+
+// 添加日志
+function addLog(message, type = 'info') {
+    const log = document.getElementById('operationLog');
+    const entry = document.createElement('div');
+    entry.className = 'log-entry ' + type;
+    entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+
+    if (log.querySelector('.text-muted')) {
+        log.innerHTML = '';
+    }
+
+    log.insertBefore(entry, log.firstChild);
+
+    // 限制日志数量
+    while (log.children.length > 20) {
+        log.removeChild(log.lastChild);
+    }
+}
+
+// 辅助函数
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// 事件监听
+document.getElementById('offsetSlider').addEventListener('input', function() {
+    selectOffset(parseInt(this.value));
+});
+
+document.getElementById('newDataSelect').addEventListener('change', function() {
+    updateAnalysis();
+});
+
+// 页面加载初始化
+document.addEventListener('DOMContentLoaded', function() {
+    initPage();
+});
+</script>
+{% endblock %}

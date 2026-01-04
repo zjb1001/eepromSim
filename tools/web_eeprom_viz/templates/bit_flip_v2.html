@@ -1,0 +1,646 @@
+{% extends "base.html" %}
+
+{% block title %}位翻转侦探 - 数据破坏调查{% endblock %}
+
+{% block content %}
+<div class="page-shell container-fluid h-100 d-flex flex-column">
+    <!-- 顶部标题 -->
+    <div class="mb-3">
+        <h2 class="mb-2">🔍 数据破坏侦探: 找到被翻转的位！</h2>
+        <div class="alert alert-info mb-0">
+            <strong>🎮 游戏规则:</strong> 数据传输过程中某些位可能被翻转（0→1或1→0）。
+            作为侦探，你需要：观察数据→发现异常→验证CRC→找出故障！<br>
+            <small>CRC16校验能检测到任何位的变化，哪怕只翻转1位！</small>
+        </div>
+    </div>
+
+    <!-- 左右布局: 左侧可视化，右侧操作 -->
+    <div class="row flex-grow-1 g-3">
+        <!-- 左侧: 可视化区域 (58%) -->
+        <div class="col-lg-7">
+            <div class="d-flex flex-column gap-3 h-100">
+                <!-- 关卡信息 -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">🎯 关卡 <span id="levelDisplay">1</span>/3</h5>
+                        <div>
+                            <span class="badge bg-primary">得分: <span id="scoreDisplay">0</span></span>
+                            <span class="badge bg-success ms-2" id="statusBadge">调查中</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="levelTask" class="alert alert-secondary mb-0">
+                            <strong>Level 1:</strong> 检测1个位翻转 - 数据传输中有1位被翻转，你能找到吗？
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 数据对比区域 -->
+                <div class="row flex-grow-1">
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0">📥 原始数据 (发送端)</h6>
+                            </div>
+                            <div class="card-body d-flex flex-column">
+                                <div id="originalData" class="binary-grid flex-grow-1">
+                                    <!-- 16字节 x 8位 -->
+                                </div>
+                                <div class="text-center mt-2">
+                                    <small class="text-muted">CRC16: </small>
+                                    <code id="originalCrc" class="badge bg-success">0x0000</code>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-header bg-warning text-dark">
+                                <h6 class="mb-0">📤 接收数据 (可能有损坏)</h6>
+                            </div>
+                            <div class="card-body d-flex flex-column">
+                                <div id="receivedData" class="binary-grid flex-grow-1">
+                                    <!-- 16字节 x 8位 -->
+                                </div>
+                                <div class="text-center mt-2">
+                                    <small class="text-muted">CRC16: </small>
+                                    <code id="receivedCrc" class="badge bg-danger">0x0000</code>
+                                    <span id="crcMismatch" class="badge bg-danger ms-2" style="display:none;">❌ 不匹配!</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 逐位对比 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">🔍 逐位对比分析</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="bitComparison" class="comparison-grid">
+                            <!-- 逐位对比 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 恢复策略 -->
+                <div class="card" id="recoveryCard" style="display:none;">
+                    <div class="card-header bg-danger">
+                        <h5 class="mb-0">🚨 数据损坏检测！恢复策略</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="card border-danger">
+                                    <div class="card-body text-center">
+                                        <h6>Native Block</h6>
+                                        <p class="text-danger">❌ 无备份</p>
+                                    <small>数据永久丢失</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card border-warning">
+                                <div class="card-body text-center">
+                                    <h6>Redundant Block</h6>
+                                    <p class="text-warning">✅ 双备份</p>
+                                    <small>从备份恢复</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card border-success">
+                                <div class="card-body text-center">
+                                    <h6>Dataset Block</h6>
+                                    <p class="text-success">✅ 多版本</p>
+                                    <small>回退到历史版本</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧: 操作面板 (42%) -->
+        <div class="col-lg-5">
+            <div class="d-flex flex-column gap-3 h-100">
+                <!-- 侦探工具 -->
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">🕵️ 侦探工具</h5>
+                    </div>
+                    <div class="card-body">
+                        <label class="form-label mb-2">翻转控制:</label>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-danger" onclick="injectBitFlip(1)">
+                                💥 注入1位翻转 (Level 1)
+                            </button>
+                            <button class="btn btn-outline-warning" onclick="injectBitFlip(2)" id="btnFlip2" disabled>
+                                💥💥 注入2位翻转 (Level 2)
+                            </button>
+                            <button class="btn btn-outline-dark" onclick="injectBitFlip(3)" id="btnFlip3" disabled>
+                                💥💥💥 注入3位翻转 (Level 3)
+                            </button>
+                        </div>
+
+                        <hr>
+
+                        <div class="alert alert-warning small mb-0">
+                            <strong>💡 提示:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>点击"注入位翻转"模拟数据损坏</li>
+                                <li>CRC不匹配说明数据被篡改</li>
+                                <li>对比原始和接收数据找出差异</li>
+                                <li>不同位翻转数CRC检测概率不同</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 调查日志 -->
+                <div class="card flex-grow-1">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">📊 调查日志</h5>
+                    </div>
+                    <div class="card-body" style="max-height: 250px; overflow-y: auto; font-size: 12px;">
+                        <div id="investigationLog">
+                            <p class="text-muted text-center">等待调查开始...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 成功庆祝模态框 -->
+    <div class="modal" id="levelCompleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">🎉 关卡完成！</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <h6>✅ 你成功找到了数据损坏！</h6>
+                    <div id="levelSummary"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="nextLevel()">
+                        下一关 ➡️
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        继续调查
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* 确保主要内容区域充满可用空间，但不影响导航栏容器 */
+.page-shell {
+    min-height: calc(100vh - 100px);
+}
+
+.binary-grid {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 0;
+    font-size: 7px;
+    font-family: monospace;
+    max-width: 100%;
+}
+
+.byte-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    transition: all 0.3s ease;
+}
+
+.byte-hex {
+    font-weight: bold;
+    color: #495057;
+    margin-bottom: 0;
+    font-size: 7px;
+}
+
+.byte-bits {
+    display: flex;
+    gap: 0;
+}
+
+.bit {
+    width: 6px;
+    height: 9px;
+    text-align: center;
+    font-size: 6px;
+    line-height: 9px;
+    color: #6c757d;
+    border: 1px solid #e9ecef;
+}
+
+.bit-flipped {
+    background: #ff6b6b;
+    color: white;
+    animation: highlight-flip 1s infinite;
+    font-weight: bold;
+}
+
+@keyframes highlight-flip {
+    0%, 100% { background: #ff6b6b; }
+    50% { background: #ffe66d; }
+}
+
+.comparison-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 10px;
+}
+
+.comparison-byte {
+    border: 1px solid #dee2e6;
+    padding: 10px;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.comparison-byte.flipped {
+    border-color: #ff6b6b;
+    background: #fff5f5;
+}
+
+.comparison-bits {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    margin: 10px 0;
+}
+
+.comparison-bit {
+    width: 25px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: monospace;
+    font-weight: bold;
+    background: #f8f9fa;
+    border-radius: 3px;
+}
+
+.comparison-bit.different {
+    background: #ff6b6b;
+    color: white;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.log-entry {
+    padding: 6px;
+    margin-bottom: 5px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 11px;
+    border-left: 3px solid #0dcaf0;
+}
+
+/* 响应式 */
+@media (max-width: 991px) {
+    .page-shell {
+        min-height: auto;
+    }
+
+    .binary-grid {
+        grid-template-columns: repeat(8, 1fr);
+    }
+
+    .byte-cell {
+        padding: 2px;
+    }
+
+    .bit {
+        width: 8px;
+        height: 12px;
+        font-size: 8px;
+        line-height: 12px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let originalData = [];
+let receivedData = [];
+let currentLevel = 1;
+let score = 0;
+let flippedBits = [];
+
+// 初始化数据
+function initData() {
+    originalData = [];
+    for (let i = 0; i < 16; i++) {
+        // 生成随机数据
+        originalData.push(Math.floor(Math.random() * 256));
+    }
+    receivedData = [...originalData];
+    flippedBits = [];
+
+    updateDisplay();
+    addLog('📊 数据已生成: 16字节随机数据', 'info');
+    addLog(`✅ 原始CRC16: ${calculateCRC(originalData)}`, 'info');
+}
+
+// 计算CRC16（简化版，仅用于演示）
+function calculateCRC(data) {
+    // 简化的CRC计算（实际应用需使用标准CRC16算法）
+    let crc = 0xFFFF;
+    for (let byte of data) {
+        crc ^= byte << 8;
+        for (let i = 0; i < 8; i++) {
+            if (crc & 0x8000) {
+                crc = (crc << 1) ^ 0x1021;
+            } else {
+                crc = crc << 1;
+            }
+        }
+    }
+    return '0x' + (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+}
+
+// 注入位翻转
+async function injectBitFlip(numBits) {
+    if (flippedBits.length > 0) {
+        if (!confirm('已有位翻转，是否重新开始？')) {
+            return;
+        }
+        initData();
+    }
+
+    addLog(`💥 注入${numBits}位翻转...`, 'warning');
+    await sleep(300);
+
+    flippedBits = [];
+    const byteIndices = [];
+    const bitIndices = [];
+
+    // 选择随机的字节和位
+    for (let i = 0; i < numBits; i++) {
+        let byteIdx, bitIdx;
+        do {
+            byteIdx = Math.floor(Math.random() * 16);
+            bitIdx = Math.floor(Math.random() * 8);
+        } while (flippedBits.some(f => f.byteIdx === byteIdx && f.bitIdx === bitIdx));
+
+        flippedBits.push({ byteIdx, bitIdx });
+        byteIndices.push(byteIdx);
+        bitIndices.push(bitIdx);
+
+        // 翻转位
+        receivedData[byteIdx] ^= (1 << bitIdx);
+    }
+
+    await sleep(300);
+
+    // 更新显示
+    updateDisplay();
+    highlightFlippedBits();
+
+    // 显示CRC检测结果
+    const originalCrc = calculateCRC(originalData);
+    const receivedCrc = calculateCRC(receivedData);
+
+    addLog(`⚠️ 数据损坏检测！`, 'error');
+    addLog(`原始CRC: ${originalCrc}`, 'info');
+    addLog(`接收CRC: ${receivedCrc}`, 'error');
+    addLog(`❌ CRC不匹配！数据已损坏`, 'error');
+
+    document.getElementById('crcMismatch').style.display = 'inline';
+    document.getElementById('statusBadge').textContent = '发现损坏';
+    document.getElementById('statusBadge').className = 'badge bg-danger ms-2';
+
+    // 显示恢复策略
+    document.getElementById('recoveryCard').style.display = 'block';
+
+    // 显示对比
+    showComparison();
+
+    // 得分
+    score += numBits * 100;
+    document.getElementById('scoreDisplay').textContent = score;
+
+    // 解锁下一关按钮
+    if (currentLevel === 1) {
+        document.getElementById('btnFlip2').disabled = false;
+        addLog(`✅ Level 1完成！解锁Level 2`, 'success');
+
+        // 显示成功模态框
+        setTimeout(() => {
+            showLevelComplete();
+        }, 1000);
+    } else if (currentLevel === 2) {
+        document.getElementById('btnFlip3').disabled = false;
+        addLog(`✅ Level 2完成！解锁Level 3`, 'success');
+
+        setTimeout(() => {
+            showLevelComplete();
+        }, 1000);
+    } else {
+        addLog(`🎉 恭喜！所有关卡完成！`, 'success');
+
+        setTimeout(() => {
+            showLevelComplete();
+        }, 1000);
+    }
+}
+
+// 高亮翻转的位
+function highlightFlippedBits() {
+    const receivedDiv = document.getElementById('receivedData');
+    const cells = receivedDiv.querySelectorAll('.byte-cell');
+
+    flippedBits.forEach(({ byteIdx, bitIdx }) => {
+        const cell = cells[byteIdx];
+        const bit = cell.querySelectorAll('.bit')[7 - bitIdx]; // 左到右显示bit7到bit0
+        bit.classList.add('bit-flipped');
+    });
+}
+
+// 显示对比
+function showComparison() {
+    const comparisonDiv = document.getElementById('bitComparison');
+    comparisonDiv.innerHTML = '';
+
+    for (let i = 0; i < 16; i++) {
+        const isFlipped = flippedBits.some(f => f.byteIdx === i);
+        const div = document.createElement('div');
+        div.className = `comparison-byte ${isFlipped ? 'flipped' : ''}`;
+
+        const originalByte = originalData[i];
+        const receivedByte = receivedData[i];
+
+        let bitsHtml = '<div class="comparison-bits">';
+        for (let bit = 7; bit >= 0; bit--) {
+            const originalBit = (originalByte >> bit) & 1;
+            const receivedBit = (receivedByte >> bit) & 1;
+            const isDifferent = originalBit !== receivedBit;
+
+            bitsHtml += `
+                <div class="comparison-bit ${isDifferent ? 'different' : ''}">
+                    ${receivedBit}
+                </div>
+            `;
+        }
+        bitsHtml += '</div>';
+
+        div.innerHTML = `
+            <strong>Byte ${i}</strong>
+            <div class="text-muted small">0x${originalByte.toString(16).toUpperCase()}</div>
+            ${bitsHtml}
+            ${isFlipped ? '<small class="text-danger">⚠️ 有位翻转</small>' : '<small class="text-success">✓ 正常</small>'}
+        `;
+
+        comparisonDiv.appendChild(div);
+    }
+}
+
+// 更新显示
+function updateDisplay() {
+    const originalDiv = document.getElementById('originalData');
+    const receivedDiv = document.getElementById('receivedData');
+
+    originalDiv.innerHTML = '';
+    receivedDiv.innerHTML = '';
+
+    for (let i = 0; i < 16; i++) {
+        originalDiv.innerHTML += createByteCell(originalData[i], i);
+        receivedDiv.innerHTML += createByteCell(receivedData[i], i);
+    }
+
+    document.getElementById('originalCrc').textContent = calculateCRC(originalData);
+    document.getElementById('receivedCrc').textContent = calculateCRC(receivedData);
+}
+
+// 创建字节单元格
+function createByteCell(value, index) {
+    const hex = value.toString(16).toUpperCase().padStart(2, '0');
+    let bits = '';
+
+    for (let bit = 7; bit >= 0; bit--) {
+        const bitValue = (value >> bit) & 1;
+        bits += `<span class="bit">${bitValue}</span>`;
+    }
+
+    return `
+        <div class="byte-cell">
+            <span class="byte-hex">${hex}</span>
+            <span class="byte-bits">${bits}</span>
+        </div>
+    `;
+}
+
+// 添加日志
+function addLog(message, type = 'info') {
+    const log = document.getElementById('investigationLog');
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.textContent = message;
+
+    if (log.querySelector('.text-muted')) {
+        log.innerHTML = '';
+    }
+
+    log.insertBefore(entry, log.firstChild);
+}
+
+// 显示关卡完成
+function showLevelComplete() {
+    const modal = new bootstrap.Modal(document.getElementById('levelCompleteModal'));
+
+    let summary = '';
+    if (currentLevel === 1) {
+        summary = `
+            <p>你成功检测到${flippedBits.length}个位翻转！</p>
+            <ul>
+                <li>✅ CRC16成功检测到数据损坏</li>
+                <li>✅ 即使只翻转1位，CRC也能发现</li>
+                <li>📚 知识点: CRC是强大的错误检测机制</li>
+            </ul>
+        `;
+    } else if (currentLevel === 2) {
+        summary = `
+            <p>你成功检测到${flippedBits.length}个位翻转！</p>
+            <ul>
+                <li>✅ CRC检测概率: 100%</li>
+                <li>📚 知识点: 多位翻转CRC仍能检测</li>
+            </ul>
+        `;
+    } else {
+        summary = `
+            <p>🎉 恭喜你完成所有关卡！</p>
+            <p>总分: ${score}分</p>
+            <ul>
+                <li>✅ 理解了位翻转故障</li>
+                <li>✅ 了解了CRC的检测能力</li>
+                <li>✅ 掌握了数据恢复策略</li>
+            </ul>
+            <p><strong>你已经是数据侦探专家了！</strong></p>
+        `;
+    }
+
+    document.getElementById('levelSummary').innerHTML = summary;
+    modal.show();
+}
+
+// 下一关
+function nextLevel() {
+    if (currentLevel < 3) {
+        currentLevel++;
+        document.getElementById('levelDisplay').textContent = currentLevel;
+        document.getElementById('levelTask').innerHTML = getLevelTask(currentLevel);
+
+        // 重置状态
+        document.getElementById('crcMismatch').style.display = 'none';
+        document.getElementById('statusBadge').textContent = '调查中';
+        document.getElementById('statusBadge').className = 'badge bg-success ms-2';
+        document.getElementById('recoveryCard').style.display = 'none';
+
+        initData();
+    }
+}
+
+// 获取关卡任务
+function getLevelTask(level) {
+    if (level === 1) {
+        return '<strong>Level 1:</strong> 检测1个位翻转 - 数据传输中有1位被翻转，你能找到吗？';
+    } else if (level === 2) {
+        return '<strong>Level 2:</strong> 检测2个位翻转 - 更复杂的数据损坏，CRC还能检测到吗？';
+    } else {
+        return '<strong>Level 3:</strong> 检测3个位翻转 - 终极挑战，测试CRC的极限能力！';
+    }
+}
+
+// 辅助函数
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// 页面加载初始化
+document.addEventListener('DOMContentLoaded', function() {
+    initData();
+});
+</script>
+{% endblock %}

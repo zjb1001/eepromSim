@@ -1,0 +1,524 @@
+{% extends "base.html" %}
+
+{% block title %}磨损均衡 - Page寿命竞赛{% endblock %}
+
+{% block content %}
+<div class="page-shell container-fluid h-100 d-flex flex-column">
+    <!-- 顶部标题 -->
+    <div class="mb-3">
+        <h2 class="mb-2">🏃 Page寿命竞赛：谁先挂掉？</h2>
+        <div class="alert alert-warning mb-0">
+            <strong>🎯 实验目标:</strong> 对比三种磨损均衡策略，看哪种策略能让EEPROM寿命最长！<br>
+            <small>每个Page只能擦除100次就报废，看看不同策略下Page的死亡顺序</small>
+        </div>
+    </div>
+
+    <!-- 左右布局: 左侧可视化，右侧操作 -->
+    <div class="row flex-grow-1 g-3">
+        <!-- 左侧: 可视化区域 (58%) -->
+        <div class="col-lg-7">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">📊 Page寿命监控 (每个Page可擦除100次)</h5>
+                    <div>
+                        <span class="badge bg-danger me-2">💀 已死亡: <span id="deadCount">0</span></span>
+                        <span class="badge bg-warning">⚠️ 濒危: <span id="lowCount">0</span></span>
+                    </div>
+                </div>
+                <div class="card-body d-flex flex-column">
+                    <!-- Page寿命条网格 -->
+                    <div id="pageBars" class="page-bars flex-grow-1">
+                        <!-- 16个Page的寿命条 -->
+                    </div>
+
+                    <!-- 统计信息 -->
+                    <div class="row mt-3 g-3">
+                        <div class="col-6 col-md-3">
+                            <div class="stat-box text-center">
+                                <h3 class="text-primary mb-0" id="statTotalWrites">0</h3>
+                                <small>总写入次数</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="stat-box text-center">
+                                <h3 class="text-danger mb-0" id="statMaxErase">0</h3>
+                                <small>最大擦除次数</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="stat-box text-center">
+                                <h3 class="text-warning mb-0" id="statMinErase">0</h3>
+                                <small>最小擦除次数</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="stat-box text-center">
+                                <h3 class="text-info mb-0" id="statImbalance">0x</h3>
+                                <small>不均匀度</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧: 操作面板 (42%) -->
+        <div class="col-lg-5">
+            <div class="d-flex flex-column gap-3 h-100">
+                <!-- 策略选择卡片 -->
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">⚙️ 策略选择</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-danger" onclick="runSimulation('none')" id="btnNone">
+                                ❌ 无均衡 (总是Page 0)
+                            </button>
+                            <button class="btn btn-warning" onclick="runSimulation('round_robin')" id="btnRoundRobin">
+                                🔄 轮询均衡 (均匀分配)
+                            </button>
+                            <button class="btn btn-success" onclick="runSimulation('dynamic')" id="btnDynamic">
+                                ⭐ 动态均衡 (智能选择)
+                            </button>
+                        </div>
+
+                        <hr>
+
+                        <div class="mb-3">
+                            <label class="form-label">模拟写入次数:</label>
+                            <input type="range" id="writeCount" class="form-range" min="10" max="1000" value="100" step="10">
+                            <div class="text-center">
+                                <span class="badge bg-primary" style="font-size: 1.2em;">
+                                    <span id="writeCountDisplay">100</span> 次写入
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">动画速度:</label>
+                            <select id="speedSelect" class="form-select">
+                                <option value="200">慢速 (教学)</option>
+                                <option value="50" selected>正常</option>
+                                <option value="10">快速</option>
+                                <option value="0">瞬间完成</option>
+                            </select>
+                        </div>
+
+                        <div class="alert alert-info mb-0">
+                            <h6 class="mb-2">💡 策略说明:</h6>
+                            <p class="small mb-0" id="strategyDescription">
+                                选择一个策略并点击运行，观察Page寿命的变化。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 写入日志卡片 -->
+                <div class="card flex-grow-1">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">📋 写入日志</h5>
+                    </div>
+                    <div class="card-body" style="max-height: 250px; overflow-y: auto;">
+                        <div id="writeLog">
+                            <p class="text-muted text-center">选择策略并运行模拟...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* 确保主要内容区域充满可用空间，但不影响导航栏容器 */
+.page-shell {
+    min-height: calc(100vh - 100px);
+}
+
+/* Page寿命条网格 */
+.page-bars {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 8px;
+    padding: 10px;
+    min-height: 280px;
+    max-width: 100%;
+}
+
+.page-bar-container {
+    text-align: center;
+}
+
+.page-bar {
+    width: 100%;
+    height: 200px;
+    background: #f0f0f0;
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 6px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.page-bar-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transition: height 0.3s ease, background 0.3s ease;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    padding-bottom: 5px;
+}
+
+.page-dead {
+    background: #74b9ff !important;
+    opacity: 0.3;
+    animation: death-pulse 2s infinite;
+}
+
+.page-dead::after {
+    content: '💀';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 32px;
+}
+
+@keyframes death-pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.5; }
+}
+
+.page-label {
+    font-weight: bold;
+    color: #2d3436;
+    font-size: 14px;
+}
+
+/* 统计框 */
+.stat-box {
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+/* 操作日志 */
+.log-entry {
+    padding: 8px;
+    margin-bottom: 5px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 12px;
+    border-left: 3px solid #6c757d;
+}
+
+.log-write {
+    background: #e9ecef;
+    border-left-color: #6c757d;
+}
+
+.log-dead {
+    background: #f8d7da;
+    border-left-color: #dc3545;
+    color: #721c24;
+}
+
+.log-info {
+    background: #d1ecf1;
+    border-left-color: #17a2b8;
+    color: #0c5460;
+}
+
+/* 响应式 */
+@media (max-width: 991px) {
+    .page-shell {
+        min-height: auto;
+    }
+
+    .page-bars {
+        grid-template-columns: repeat(4, 1fr);
+        min-height: 300px;
+    }
+
+    .page-bar {
+        height: 180px;
+    }
+}
+
+@media (max-width: 575px) {
+    .page-bars {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .page-bar {
+        height: 150px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let pageErases = new Array(16).fill(0);
+const MAX_ERASE = 100;
+let isRunning = false;
+let currentStrategy = '';
+
+// 策略说明
+const strategyDescriptions = {
+    'none': '<strong>❌ 无均衡策略:</strong> 总是写入Page #0，导致Page 0快速死亡，其他15个Page完全闲置。这是最糟糕的策略，浪费了94%的存储容量！',
+    'round_robin': '<strong>🔄 轮询均衡策略:</strong> 轮流写入16个Page，确保所有Page均匀使用。虽然简单有效，但无法应对已损坏的Page。',
+    'dynamic': '<strong>⭐ 动态均衡策略:</strong> 总是选择擦除次数最少（最健康）的Page。智能分配，寿命最大化，是最优的策略！'
+};
+
+// 更新策略说明
+function updateStrategyDescription(strategy) {
+    document.getElementById('strategyDescription').innerHTML = strategyDescriptions[strategy];
+}
+
+// 初始化Page条
+function initPageBars() {
+    const container = document.getElementById('pageBars');
+    container.innerHTML = '';
+
+    for (let i = 0; i < 16; i++) {
+        const div = document.createElement('div');
+        div.className = 'page-bar-container';
+        div.innerHTML = `
+            <div class="page-bar" id="bar-${i}">
+                <div class="page-bar-fill" id="fill-${i}" style="height: 100%; background: #00b894;">
+                    ${MAX_ERASE}
+                </div>
+            </div>
+            <div class="page-label">Page ${i}</div>
+            <div id="status-${i}" class="text-success small">100% 寿命</div>
+        `;
+        container.appendChild(div);
+    }
+}
+
+// 更新Page显示
+function updatePageDisplay(pageId) {
+    const eraseCount = pageErases[pageId];
+    const lifePercent = Math.max(0, MAX_ERASE - eraseCount);
+    const lifePercentDisplay = ((MAX_ERASE - eraseCount) / MAX_ERASE * 100).toFixed(0);
+
+    const fill = document.getElementById(`fill-${pageId}`);
+    const status = document.getElementById(`status-${pageId}`);
+
+    fill.style.height = `${lifePercent}%`;
+    fill.textContent = lifePercent;
+
+    // 颜色根据寿命变化
+    if (eraseCount >= MAX_ERASE) {
+        fill.style.background = '#74b9ff';
+        fill.parentElement.classList.add('page-dead');
+        status.textContent = '已死亡 💀';
+        status.className = 'text-danger small';
+    } else if (lifePercent < 20) {
+        fill.style.background = '#d63031';
+        status.textContent = `${lifePercentDisplay}% 濒危`;
+        status.className = 'text-danger small';
+    } else if (lifePercent < 50) {
+        fill.style.background = '#fdcb6e';
+        status.textContent = `${lifePercentDisplay}% 寿命`;
+        status.className = 'text-warning small';
+    } else {
+        fill.style.background = '#00b894';
+        status.textContent = `${lifePercentDisplay}% 寿命`;
+        status.className = 'text-success small';
+    }
+
+    updateStats();
+}
+
+// 更新统计
+function updateStats() {
+    const totalWrites = pageErases.reduce((a, b) => a + b, 0);
+    const maxErase = Math.max(...pageErases);
+    const minErase = Math.min(...pageErases);
+    const imbalance = maxErase / Math.max(minErase, 1);
+
+    document.getElementById('statTotalWrites').textContent = totalWrites;
+    document.getElementById('statMaxErase').textContent = maxErase;
+    document.getElementById('statMinErase').textContent = minErase;
+    document.getElementById('statImbalance').textContent = imbalance.toFixed(1) + 'x';
+
+    const deadCount = pageErases.filter(e => e >= MAX_ERASE).length;
+    const lowCount = pageErases.filter(e => e >= 80 && e < MAX_ERASE).length;
+    document.getElementById('deadCount').textContent = deadCount;
+    document.getElementById('lowCount').textContent = lowCount;
+}
+
+// 添加日志
+function addLog(message, type = 'write') {
+    const log = document.getElementById('writeLog');
+    const entry = document.createElement('div');
+    entry.className = `log-entry log-${type}`;
+    entry.textContent = message;
+
+    if (log.querySelector('.text-muted')) {
+        log.innerHTML = '';
+    }
+
+    log.insertBefore(entry, log.firstChild);
+
+    // 限制日志数量
+    while (log.children.length > 50) {
+        log.removeChild(log.lastChild);
+    }
+}
+
+// 选择Page（根据策略）
+function selectPage(strategy, writeNum) {
+    if (strategy === 'none') {
+        return 0;  // 总是写Page 0
+    } else if (strategy === 'round_robin') {
+        return writeNum % 16;
+    } else if (strategy === 'dynamic') {
+        // 选择擦除次数最少的Page
+        let minErase = Infinity;
+        let minPage = 0;
+        for (let i = 0; i < 16; i++) {
+            if (pageErases[i] < minErase) {
+                minErase = pageErases[i];
+                minPage = i;
+            }
+        }
+        return minPage;
+    }
+    return 0;
+}
+
+// 运行模拟
+async function runSimulation(strategy) {
+    if (isRunning) return;
+    isRunning = true;
+    currentStrategy = strategy;
+
+    // 更新策略说明
+    updateStrategyDescription(strategy);
+
+    const writeCount = parseInt(document.getElementById('writeCount').value);
+    const speed = parseInt(document.getElementById('speedSelect').value);
+
+    // 重置
+    pageErases.fill(0);
+    initPageBars();
+    updateStats();
+    document.getElementById('writeLog').innerHTML = '<p class="text-muted text-center">模拟开始...</p>';
+
+    const strategyNames = {
+        'none': '❌ 无均衡',
+        'round_robin': '🔄 轮询均衡',
+        'dynamic': '⭐ 动态均衡'
+    };
+
+    addLog(`开始模拟: ${strategyNames[strategy]}`, 'info');
+    await sleep(speed * 2);
+
+    // 逐次写入
+    for (let i = 0; i < writeCount; i++) {
+        const pageId = selectPage(strategy, i);
+
+        // 检查Page是否已死
+        if (pageErases[pageId] >= MAX_ERASE) {
+            addLog(`#${i + 1}: Page ${pageId}已死亡，跳过`, 'dead');
+            continue;
+        }
+
+        pageErases[pageId]++;
+        updatePageDisplay(pageId);
+
+        const strategyText = {
+            'none': `写入 Page ${pageId} (总是Page 0)`,
+            'round_robin': `写入 Page ${pageId} (轮询)`,
+            'dynamic': `写入 Page ${pageId} (选最健康的)`
+        };
+
+        addLog(`#${i + 1}: ${strategyText[strategy]} - 擦除次数: ${pageErases[pageId]}`, 'write');
+
+        if (pageErases[pageId] >= MAX_ERASE) {
+            addLog(`💀 Page ${pageId}死亡！`, 'dead');
+        }
+
+        if (speed > 0) {
+            await sleep(speed);
+        }
+    }
+
+    isRunning = false;
+    addLog(`模拟完成！总写入: ${writeCount}次`, 'info');
+
+    // 结果总结
+    showSummary(strategy);
+}
+
+// 显示总结
+function showSummary(strategy) {
+    const totalWrites = pageErases.reduce((a, b) => a + b, 0);
+    const deadCount = pageErases.filter(e => e >= MAX_ERASE).length;
+    const maxErase = Math.max(...pageErases);
+    const minErase = Math.min(...pageErases);
+
+    let summary = '';
+    if (strategy === 'none') {
+        summary = `
+            <strong>结果分析:</strong>
+            <ul class="mb-0">
+                <li>Page 0被写入${maxErase}次，${maxErase >= MAX_ERASE ? '已死亡' : '濒临死亡'} 💀</li>
+                <li>其他15个Page完全闲置 😴</li>
+                <li>EEPROM实际寿命只用了 ${((totalWrites / MAX_ERASE / 16) * 100).toFixed(1)}%</li>
+                <li><strong>结论:</strong> 浪费了94%的存储容量！</li>
+            </ul>
+        `;
+    } else if (strategy === 'round_robin') {
+        summary = `
+            <strong>结果分析:</strong>
+            <ul class="mb-0">
+                <li>所有Page均匀使用 ✅</li>
+                <li>不均匀度: ${(maxErase / Math.max(minErase, 1)).toFixed(1)}x</li>
+                <li>${deadCount > 0 ? deadCount + '个Page已死亡' : '所有Page健康'}</li>
+                <li><strong>结论:</strong> 寿命延长16倍！</li>
+            </ul>
+        `;
+    } else if (strategy === 'dynamic') {
+        summary = `
+            <strong>结果分析:</strong>
+            <ul class="mb-0">
+                <li>智能分配，总是选最健康的Page 🧠</li>
+                <li>不均匀度: ${(maxErase / Math.max(minErase, 1)).toFixed(1)}x (最优)</li>
+                <li>${deadCount > 0 ? deadCount + '个Page已死亡' : '所有Page健康'}</li>
+                <li><strong>结论:</strong> 寿命最大化！</li>
+            </ul>
+        `;
+    }
+
+    addLog(summary, 'info');
+}
+
+// 辅助函数
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// 事件监听
+document.getElementById('writeCount').addEventListener('input', function() {
+    document.getElementById('writeCountDisplay').textContent = this.value;
+});
+
+// 页面加载初始化
+document.addEventListener('DOMContentLoaded', function() {
+    initPageBars();
+    updateStats();
+});
+</script>
+{% endblock %}
