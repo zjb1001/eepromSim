@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🚗 eepromSim - AUTOSAR NvM Module Implementation
+# 🚗 EEPROMSim - AUTOSAR NvM Module Implementation
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version: 1.0.0](https://img.shields.io/badge/Version-1.0.0-blue.svg)](https://github.com/zjb1001/eepromSim)
@@ -17,7 +17,7 @@
 
 ## 📖 Overview
 
-**eepromSim** is a high-quality, production-ready AUTOSAR 4.3 NvM (Non-Volatile Memory Manager) module implementation designed specifically for automotive embedded systems. It provides reliable EEPROM data management with ISO 26262 ASIL-B compliant concurrent safety mechanisms.
+**EEPROMSim** is a high-quality, production-ready AUTOSAR 4.3 NvM (Non-Volatile Memory Manager) module implementation designed specifically for automotive embedded systems. It provides reliable EEPROM data management with ISO 26262 ASIL-B compliant concurrent safety mechanisms.
 
 ### 🎯 Project Stats
 
