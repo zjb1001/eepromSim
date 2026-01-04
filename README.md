@@ -12,13 +12,13 @@ eepromSim is a high-quality NvM module implementation designed for automotive em
 
 ### Key Features
 
-✅ **AUTOSAR 4.3 Compliant** - 82% API coverage (9/11 core APIs)
-✅ **3 Block Types** - Native, Redundant, Dataset
-✅ **Concurrent Safety** - Seqlock + ABA prevention (50-100x faster than mutex)
-✅ **Comprehensive Testing** - 55 test cases, 100% pass rate
-✅ **12 Example Programs** - Complete learning resource
-✅ **Fault Injection** - 30+ test scenarios (P0-P2)
-✅ **Full Documentation** - 8,000+ lines of design docs and guides
+- ✅ **AUTOSAR 4.3 Compliant** - 82% API coverage (9/11 core APIs)
+- ✅ **3 Block Types** - Native, Redundant, Dataset
+- ✅ **Concurrent Safety** - Seqlock + ABA prevention (50-100x faster than mutex)
+- ✅ **Comprehensive Testing** - 55 test cases, 100% pass rate
+- ✅ **12 Example Programs** - Complete learning resource
+- ✅ **Fault Injection** - 30+ test scenarios (P0-P2)
+- ✅ **Full Documentation** - 8,000+ lines of design docs and guides
 
 ## Quick Start
 
